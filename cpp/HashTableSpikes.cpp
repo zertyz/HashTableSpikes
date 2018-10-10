@@ -1,0 +1,731 @@
+#include <iostream>
+#include <map>
+#include <unordered_map>
+#include <thread>
+#include <random>
+#include <algorithm>
+
+#include <mutex>
+#define synchronized(m)     for(std::unique_lock<std::recursive_mutex> lk(m); lk; lk.unlock())
+
+#include <TimeMeasurements.h>
+using namespace mutua::cpputils;
+
+#include <AlgorithmComplexityAndReentrancyAnalysis.h>
+#include <SplitRun.h>
+using namespace mutua::testutils;
+
+// ska
+#include "flat_hash_map/unordered_map.hpp"
+#include "flat_hash_map/bytell_hash_map.hpp"
+
+// EASTL
+#include <EASTL/unordered_map.h>
+#include <EASTL/vector.h>
+#include <EASTL/string.h>
+
+void* operator new[](size_t size, const char* pName, int flags, unsigned     debugFlags, const char* file, int line)
+{
+    return malloc(size);
+}
+
+void* operator new[](size_t size, size_t alignment, size_t alignmentOffset, const char* pName, int flags, unsigned debugFlags, const char* file, int line)
+{
+    return malloc(size);
+}
+
+#define HEAP_TRACE
+
+#include <new>
+
+static size_t                             heap_trace_allocated_bytes            = 0;
+static size_t                             heap_trace_deallocated_bytes          = 0;
+static size_t                             heap_trace_allocated_bytes_baseline   = 0;
+static size_t                             heap_trace_deallocated_bytes_baseline = 0;
+
+void* operator new(std::size_t size) {
+    void* alloc_entry = std::malloc(size);
+    if (!alloc_entry) {
+        throw std::bad_alloc();
+    }
+    heap_trace_allocated_bytes += *(size_t*)(((size_t)alloc_entry)-sizeof(size_t));
+    //std::cout << "(-1) equals " << size << " : " << *(size_t*)(((size_t)alloc_entry)-sizeof(size_t)) << std::endl << std::flush;
+    return alloc_entry;
+}
+
+void operator delete(void* alloc_entry) noexcept {
+    heap_trace_deallocated_bytes += *(size_t*)(((size_t)alloc_entry)-sizeof(size_t));
+    //std::cout << "(-1) : " << *(size_t*)(((size_t)alloc_entry)-sizeof(size_t)) << std::endl << std::flush;
+    std::free(alloc_entry);
+}
+
+void setHeapTraceBaseline() {
+    heap_trace_allocated_bytes_baseline   = heap_trace_allocated_bytes;
+    heap_trace_deallocated_bytes_baseline = heap_trace_deallocated_bytes;
+}
+
+void getHeapTraceInfo(string title) {
+    std::cout << "\t" << title << ":" << std::endl;
+    std::cout << "\t\tAllocations:   " << (heap_trace_allocated_bytes   - heap_trace_allocated_bytes_baseline)   << " bytes" << std::endl;
+    std::cout << "\t\tDeallocations: " << (heap_trace_deallocated_bytes - heap_trace_deallocated_bytes_baseline) << " bytes" << std::endl;
+    std::cout << std::endl << std::flush;
+}
+
+
+// test & exploration functions
+///////////////////////////////
+
+void hashTableExperiments() {
+
+    cout << endl << endl;
+    cout << "Hash Table Experiments:" << endl;
+    cout << "====================== " << endl << endl;
+
+    #define _numberOfElements 2'048'000
+    #define _threads          4
+
+    setHeapTraceBaseline();
+
+    cout << "Generating keys... " << flush;
+    std::vector<string> keys = std::vector<string>(_numberOfElements);
+    std::string         str("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+    std::random_device  rd;
+    std::mt19937        generator(rd());
+    for (int i=0; i<_numberOfElements; i++) {
+        std::shuffle(str.begin(), str.end(), generator);
+        string key = str.substr(0, 16);
+        keys[i]    = key;
+        if (i%102400 == 0) {
+            cout << "." << flush;
+        }
+    }
+
+    cout << endl << endl << flush;
+
+    getHeapTraceInfo("Random keys allocation costs");
+
+    class StandardMapStringIndexExperiments: public AlgorithmComplexityAndReentrancyAnalysis {
+    public:
+        std::vector<string>&  keys;
+        std::map<string, int> map;
+        std::mutex            writeGuard;
+        std::mutex*           readGuard;
+
+        StandardMapStringIndexExperiments(std::vector<string>& keys)
+                : AlgorithmComplexityAndReentrancyAnalysis("StandardMapStringIndexExperiments", _numberOfElements)
+        		, readGuard(nullptr)
+                , keys(keys) {
+            map  = std::map<string, int>();
+        }
+
+        void resetTables(EResetOccasion occasion) override {
+            map.clear();
+        }
+
+        // algorithms under analysis & test
+        ///////////////////////////////////
+
+        void insertAlgorithm(unsigned int i) override {
+            std::lock_guard<std::mutex> lock(writeGuard);
+        	readGuard = &writeGuard;
+            map[keys[i]] = ((int)i);
+            readGuard = nullptr;
+        }
+
+        void selectAlgorithm(unsigned int i) override {
+        	if (readGuard != nullptr) std::lock_guard<std::mutex> lock(*readGuard);
+            if (map[keys[i]] != ((int)i)) {
+                cerr << "Select: item #" << i << ", on the insert phase, should be " << ((int)i) << " but is " << map[keys[i]] << endl << flush;
+            }
+        }
+
+        void updateAlgorithm(unsigned int i) override {
+            std::lock_guard<std::mutex> lock(writeGuard);
+        	readGuard = &writeGuard;
+            map[keys[i]] = -((int)i);
+            readGuard = nullptr;
+        }
+
+        void deleteAlgorithm(unsigned int i) override {
+            std::lock_guard<std::mutex> lock(writeGuard);
+        	readGuard = &writeGuard;
+            int value = map[keys[i]];
+            map.erase(keys[i]);
+            if (value != -((int)i)) {
+                cerr << "Delete: item #" << i << ", on the update phase, should be " << -((int)i) << " but was " << value << endl << flush;
+            }
+            readGuard = nullptr;
+        }
+    };
+    setHeapTraceBaseline();
+    {
+        StandardMapStringIndexExperiments standardMapStringIndexExperiments = StandardMapStringIndexExperiments(keys);
+        // reentrancy tests
+        for (int i=11; i<=10; i++) {
+            if (i%10 == 0) {
+                standardMapStringIndexExperiments.testReentrancy(_numberOfElements, true);
+                getHeapTraceInfo("StandardMapStringIndexExperiments first pass allocation costs");
+            } else {
+                standardMapStringIndexExperiments.testReentrancy(_numberOfElements, false);
+                cout << "." << flush;
+            }
+        }
+        // complexity analysis
+        for (int i=11; i<=10; i++) {
+            if (i%10 == 0) {
+                standardMapStringIndexExperiments.analyseComplexity(false, _threads, _threads, _threads, _threads, true);
+            } else {
+                standardMapStringIndexExperiments.analyseComplexity(false, _threads, _threads, _threads, _threads, false);
+                cout << "." << flush;
+            }
+        }
+    }
+    getHeapTraceInfo("StandardMapStringIndexExperiments total allocation costs");
+
+    class UnorderedMapStringIndexExperiments: public AlgorithmComplexityAndReentrancyAnalysis {
+    public:
+        std::vector<string>&            keys;
+        std::unordered_map<string, int> map;
+        std::mutex                      writeGuard;
+        std::mutex*                     readGuard;
+
+        UnorderedMapStringIndexExperiments(std::vector<string>& keys)
+                : AlgorithmComplexityAndReentrancyAnalysis("UnorderedMapStringIndexExperiments", _numberOfElements)
+				, readGuard(nullptr)
+                , keys(keys) {
+            map  = std::unordered_map<string, int>();
+        }
+
+        void resetTables(EResetOccasion occasion) override {
+            map.clear();
+        }
+
+        // algorithms under analysis & test
+        ///////////////////////////////////
+
+        void insertAlgorithm(unsigned int i) override {
+            std::lock_guard<std::mutex> lock(writeGuard);
+        	readGuard = &writeGuard;
+            map[keys[i]] = ((int)i);
+            readGuard = nullptr;
+        }
+
+        void selectAlgorithm(unsigned int i) override {
+        	if (readGuard != nullptr) std::lock_guard<std::mutex> lock(*readGuard);
+            if (map[keys[i]] != ((int)i)) {
+                cerr << "Select: item #" << i << ", on the insert phase, should be " << ((int)i) << " but is " << map[keys[i]] << endl << flush;
+            }
+        }
+
+        void updateAlgorithm(unsigned int i) override {
+            std::lock_guard<std::mutex> lock(writeGuard);
+        	readGuard = &writeGuard;
+            map[keys[i]] = -((int)i);
+            readGuard = nullptr;
+        }
+
+        void deleteAlgorithm(unsigned int i) override {
+            std::lock_guard<std::mutex> lock(writeGuard);
+        	readGuard = &writeGuard;
+            int value = map[keys[i]];
+            map.erase(keys[i]);
+            if (value != -((int)i)) {
+                cerr << "Delete: item #" << i << ", on the update phase, should be " << -((int)i) << " but was " << value << endl << flush;
+            }
+            readGuard = nullptr;
+        }
+    };
+    setHeapTraceBaseline();
+    {
+        UnorderedMapStringIndexExperiments unorderedMapStringIndexExperiments = UnorderedMapStringIndexExperiments(keys);
+        // reentrancy tests
+        for (int i=11; i<=10; i++) {
+            if (i%10 == 0) {
+                unorderedMapStringIndexExperiments.testReentrancy(_numberOfElements, true);
+                getHeapTraceInfo("UnorderedMapStringIndexExperiments first pass allocation costs");
+            } else {
+                unorderedMapStringIndexExperiments.testReentrancy(_numberOfElements, false);
+                cout << "." << flush;
+            }
+        }
+        // complexity analysis
+        for (int i=11; i<=10; i++) {
+            if (i%10 == 0) {
+                unorderedMapStringIndexExperiments.analyseComplexity(false, _threads, _threads, _threads, _threads, true);
+            } else {
+                unorderedMapStringIndexExperiments.analyseComplexity(false, _threads, _threads, _threads, _threads, false);
+                cout << "." << flush;
+            }
+        }
+    }
+    getHeapTraceInfo("UnorderedMapStringIndexExperiments total allocation costs");
+
+    class SkaUnorderedMapStringIndexExperiments: public AlgorithmComplexityAndReentrancyAnalysis {
+    public:
+        std::vector<string>&            keys;
+        ska::unordered_map<string, int> map;
+        std::mutex                      writeGuard;
+        std::mutex*                     readGuard;
+
+        SkaUnorderedMapStringIndexExperiments(std::vector<string>& keys)
+                : AlgorithmComplexityAndReentrancyAnalysis("SkaUnorderedMapStringIndexExperiments", _numberOfElements)
+        		, readGuard(nullptr)
+                , keys(keys) {
+            map  = ska::unordered_map<string, int>();
+        }
+
+        void resetTables(EResetOccasion occasion) override {
+            map.clear();
+        }
+
+        // algorithms under analysis & test
+        ///////////////////////////////////
+
+        void insertAlgorithm(unsigned int i) override {
+            std::lock_guard<std::mutex> lock(writeGuard);
+        	readGuard = &writeGuard;
+            map[keys[i]] = ((int)i);
+            readGuard = nullptr;
+        }
+
+        void selectAlgorithm(unsigned int i) override {
+        	if (readGuard != nullptr) std::lock_guard<std::mutex> lock(*readGuard);
+            if (map[keys[i]] != ((int)i)) {
+                cerr << "Select: item #" << i << ", on the insert phase, should be " << ((int)i) << " but is " << map[keys[i]] << endl << flush;
+            }
+        }
+
+        void updateAlgorithm(unsigned int i) override {
+            std::lock_guard<std::mutex> lock(writeGuard);
+        	readGuard = &writeGuard;
+            map[keys[i]] = -((int)i);
+            readGuard = nullptr;
+        }
+
+        void deleteAlgorithm(unsigned int i) override {
+            std::lock_guard<std::mutex> lock(writeGuard);
+        	readGuard = &writeGuard;
+            int value = map[keys[i]];
+            map.erase(keys[i]);
+            if (value != -((int)i)) {
+                cerr << "Delete: item #" << i << ", on the update phase, should be " << -((int)i) << " but was " << value << endl << flush;
+            }
+            readGuard = nullptr;
+        }
+    };
+    setHeapTraceBaseline();
+    {
+        SkaUnorderedMapStringIndexExperiments skaUnorderedMapStringIndexExperiments = SkaUnorderedMapStringIndexExperiments(keys);
+        // reentrancy tests
+        for (int i=11; i<=10; i++) {
+            if (i%10 == 0) {
+                skaUnorderedMapStringIndexExperiments.testReentrancy(_numberOfElements, true);
+                getHeapTraceInfo("SkaUnorderedMapStringIndexExperiments total allocation costs");
+            } else {
+                skaUnorderedMapStringIndexExperiments.testReentrancy(_numberOfElements, false);
+                cout << "." << flush;
+            }
+        }
+        // complexity analysis
+        for (int i=11; i<=10; i++) {
+            if (i%10 == 0) {
+                skaUnorderedMapStringIndexExperiments.analyseComplexity(false, _threads, _threads, _threads, _threads, true);
+            } else {
+                skaUnorderedMapStringIndexExperiments.analyseComplexity(false, _threads, _threads, _threads, _threads, false);
+                cout << "." << flush;
+            }
+        }
+    }
+    getHeapTraceInfo("SkaUnorderedMapStringIndexExperiments total allocation costs");
+
+    class SkaByteLLMapStringIndexExperiments: public AlgorithmComplexityAndReentrancyAnalysis {
+    public:
+        std::vector<string>&              keys;
+        ska::bytell_hash_map<string, int> map;
+        std::mutex                        writeGuard;
+        std::mutex*                       readGuard;
+
+        SkaByteLLMapStringIndexExperiments(std::vector<string>& keys)
+                : AlgorithmComplexityAndReentrancyAnalysis("SkaByteLLMapStringIndexExperiments", _numberOfElements, _numberOfElements, _numberOfElements)
+        		, readGuard(nullptr)
+                , keys(keys) {
+            map  = ska::bytell_hash_map<string, int>();
+        }
+
+        void resetTables(EResetOccasion occasion) override {
+            map.clear();
+        }
+
+        // algorithms under analysis & test
+        ///////////////////////////////////
+
+        void insertAlgorithm(unsigned int i) override {
+            std::lock_guard<std::mutex> lock(writeGuard);
+        	readGuard = &writeGuard;
+            map[keys[i]] = ((int)i);
+            readGuard = nullptr;
+        }
+
+        void selectAlgorithm(unsigned int i) override {
+        	if (readGuard != nullptr) std::lock_guard<std::mutex> lock(*readGuard);
+            if (map[keys[i]] != ((int)i)) {
+                cerr << "Select: item #" << i << ", on the insert phase, should be " << ((int)i) << " but is " << map[keys[i]] << endl << flush;
+            }
+        }
+
+        void updateAlgorithm(unsigned int i) override {
+            std::lock_guard<std::mutex> lock(writeGuard);
+        	readGuard = &writeGuard;
+            map[keys[i]] = -((int)i);
+            readGuard = nullptr;
+        }
+
+        void deleteAlgorithm(unsigned int i) override {
+            std::lock_guard<std::mutex> lock(writeGuard);
+        	readGuard = &writeGuard;
+            int value = map[keys[i]];
+            map.erase(keys[i]);
+            if (value != -((int)i)) {
+                cerr << "Delete: item #" << i << ", on the update phase, should be " << -((int)i) << " but was " << value << endl << flush;
+            }
+            readGuard = nullptr;
+        }
+    };
+    setHeapTraceBaseline();
+    {
+        SkaByteLLMapStringIndexExperiments skaByteLLMapStringIndexExperiments = SkaByteLLMapStringIndexExperiments(keys);
+        // reentrancy tests
+        for (int i=11; i<=10; i++) {
+            if (i%10 == 0) {
+                skaByteLLMapStringIndexExperiments.testReentrancy(_numberOfElements, true);
+                getHeapTraceInfo("SkaByteLLMapStringIndexExperiments total allocation costs");
+            } else {
+                skaByteLLMapStringIndexExperiments.testReentrancy(_numberOfElements, false);
+                cout << "." << flush;
+            }
+        }
+        // complexity analysis
+        for (int i=10; i<=10; i++) {
+            if (i%10 == 0) {
+                skaByteLLMapStringIndexExperiments.analyseComplexity(false, _threads, _threads, _threads, _threads, true);
+            } else {
+                skaByteLLMapStringIndexExperiments.analyseComplexity(false, _threads, _threads, _threads, _threads, false);
+                cout << "." << flush;
+            }
+        }
+    }
+    getHeapTraceInfo("SkaByteLLMapStringIndexExperiments total allocation costs");
+
+    class EastlUnorderedMapStringIndexExperiments: public AlgorithmComplexityAndReentrancyAnalysis {
+    public:
+        eastl::vector<eastl::string>             keys;
+        eastl::unordered_map<eastl::string, int> map;
+        std::mutex                               writeGuard;
+        std::mutex*                              readGuard;
+
+        EastlUnorderedMapStringIndexExperiments(std::vector<string>& keys)
+                : AlgorithmComplexityAndReentrancyAnalysis("EastlUnorderedMapStringIndexExperiments", _numberOfElements, _numberOfElements, _numberOfElements)
+        		, readGuard(nullptr) {
+        	this->keys = eastl::vector<eastl::string>(keys.size());
+        	for (int i=0; i<keys.size(); i++) {
+        		this->keys[i] = eastl::string(keys[i].c_str());
+        	}
+            map  = eastl::unordered_map<eastl::string, int>();
+        }
+
+        void resetTables(EResetOccasion occasion) override {
+            map.clear();
+        }
+
+        // algorithms under analysis & test
+        ///////////////////////////////////
+
+        void insertAlgorithm(unsigned int i) override {
+            std::lock_guard<std::mutex> lock(writeGuard);
+        	readGuard = &writeGuard;
+            map[keys[i]] = ((int)i);
+            readGuard = nullptr;
+        }
+
+        void selectAlgorithm(unsigned int i) override {
+        	if (readGuard != nullptr) std::lock_guard<std::mutex> lock(*readGuard);
+            if (map[keys[i]] != ((int)i)) {
+                cerr << "Select: item #" << i << ", on the insert phase, should be " << ((int)i) << " but is " << map[keys[i]] << endl << flush;
+            }
+        }
+
+        void updateAlgorithm(unsigned int i) override {
+            std::lock_guard<std::mutex> lock(writeGuard);
+        	readGuard = &writeGuard;
+            map[keys[i]] = -((int)i);
+            readGuard = nullptr;
+        }
+
+        void deleteAlgorithm(unsigned int i) override {
+            std::lock_guard<std::mutex> lock(writeGuard);
+        	readGuard = &writeGuard;
+            int value = map[keys[i]];
+            map.erase(keys[i]);
+            if (value != -((int)i)) {
+                cerr << "Delete: item #" << i << ", on the update phase, should be " << -((int)i) << " but was " << value << endl << flush;
+            }
+            readGuard = nullptr;
+        }
+    };
+    setHeapTraceBaseline();
+    {
+    	EastlUnorderedMapStringIndexExperiments eastlUnorderedMapStringIndexExperiments = EastlUnorderedMapStringIndexExperiments(keys);
+        // reentrancy tests
+        for (int i=11; i<=10; i++) {
+            if (i%10 == 0) {
+            	eastlUnorderedMapStringIndexExperiments.testReentrancy(_numberOfElements, true);
+                getHeapTraceInfo("EastlUnorderedMapStringIndexExperiments total allocation costs");
+            } else {
+            	eastlUnorderedMapStringIndexExperiments.testReentrancy(_numberOfElements, false);
+                cout << "." << flush;
+            }
+        }
+        // complexity analysis
+        for (int i=10; i<=10; i++) {
+            if (i%10 == 0) {
+            	eastlUnorderedMapStringIndexExperiments.analyseComplexity(false, _threads, _threads, _threads, _threads, true);
+            } else {
+            	eastlUnorderedMapStringIndexExperiments.analyseComplexity(false, _threads, _threads, _threads, _threads, false);
+                cout << "." << flush;
+            }
+        }
+    }
+    getHeapTraceInfo("EastlUnorderedMapStringIndexExperiments total allocation costs");
+
+#undef _numberOfElements
+#undef _threads
+}
+
+void memoryFootprintExperiments() {
+
+    cout << endl << endl;
+    cout << "Memory Footprint Experiments:" << endl;
+    cout << "============================ " << endl << endl;
+
+    #define _numberOfElements 4'096'000
+    #define _threads          4
+
+    class SkaByteLLMapStringIndexExperiments: public AlgorithmComplexityAndReentrancyAnalysis {
+    public:
+        std::vector<string>&              keys;
+        ska::bytell_hash_map<string, int> map;
+        std::mutex                        writeGuard;
+        std::mutex*                       readGuard;
+
+        SkaByteLLMapStringIndexExperiments(std::vector<string>& keys)
+                : AlgorithmComplexityAndReentrancyAnalysis("SkaByteLLMapStringIndexExperiments", _numberOfElements, _numberOfElements, _numberOfElements)
+        		, readGuard(nullptr)
+                , keys(keys) {
+            map  = ska::bytell_hash_map<string, int>(_numberOfElements);
+        }
+
+        void resetTables(EResetOccasion occasion) override {
+            map.clear();
+        }
+
+        // algorithms under analysis & test
+        ///////////////////////////////////
+
+        void insertAlgorithm(unsigned int i) override {
+            std::lock_guard<std::mutex> lock(writeGuard);
+        	readGuard = &writeGuard;
+            map[keys[i]] = ((int)i);
+            readGuard = nullptr;
+        }
+
+        void selectAlgorithm(unsigned int i) override {
+        	if (readGuard != nullptr) std::lock_guard<std::mutex> lock(*readGuard);
+            if (map[keys[i]] != ((int)i)) {
+                cerr << "Select: item #" << i << ", on the insert phase, should be " << ((int)i) << " but is " << map[keys[i]] << endl << flush;
+            }
+        }
+
+        void updateAlgorithm(unsigned int i) override {
+            std::lock_guard<std::mutex> lock(writeGuard);
+        	readGuard = &writeGuard;
+            map[keys[i]] = -((int)i);
+            readGuard = nullptr;
+        }
+
+        void deleteAlgorithm(unsigned int i) override {
+            std::lock_guard<std::mutex> lock(writeGuard);
+        	readGuard = &writeGuard;
+            int value = map[keys[i]];
+            map.erase(keys[i]);
+            if (value != -((int)i)) {
+                cerr << "Delete: item #" << i << ", on the update phase, should be " << -((int)i) << " but was " << value << endl << flush;
+            }
+            readGuard = nullptr;
+        }
+    };
+    {
+        setHeapTraceBaseline();
+        cout << "Generating std::string keys... " << flush;
+        std::vector<string> keys = std::vector<string>(_numberOfElements);
+        std::string         str("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+        std::random_device  rd;
+        std::mt19937        generator(rd());
+        for (int i=0; i<_numberOfElements; i++) {
+            std::shuffle(str.begin(), str.end(), generator);
+            string key = str.substr(0, 16);
+            keys[i]    = key;
+            if (i%102400 == 0) {
+                cout << "." << flush;
+            }
+        }
+        cout << endl << endl << flush;
+        getHeapTraceInfo("std::string Random keys allocation costs");
+
+        setHeapTraceBaseline();
+        SkaByteLLMapStringIndexExperiments skaByteLLMapStringIndexExperiments = SkaByteLLMapStringIndexExperiments(keys);
+        // reentrancy tests
+        for (int i=11; i<=10; i++) {
+            if (i%10 == 0) {
+                skaByteLLMapStringIndexExperiments.testReentrancy(_numberOfElements, true);
+                getHeapTraceInfo("SkaByteLLMapStringIndexExperiments total allocation costs");
+            } else {
+                skaByteLLMapStringIndexExperiments.testReentrancy(_numberOfElements, false);
+                cout << "." << flush;
+            }
+        }
+        // complexity analysis
+        for (int i=10; i<=10; i++) {
+            if (i%10 == 0) {
+                skaByteLLMapStringIndexExperiments.analyseComplexity(false, _threads, _threads, _threads, _threads, true);
+            } else {
+                skaByteLLMapStringIndexExperiments.analyseComplexity(false, _threads, _threads, _threads, _threads, false);
+                cout << "." << flush;
+            }
+        }
+    }
+    getHeapTraceInfo("SkaByteLLMapStringIndexExperiments total allocation costs");
+
+    class EastlUnorderedMapStringIndexExperiments: public AlgorithmComplexityAndReentrancyAnalysis {
+    public:
+        eastl::vector<eastl::string>&            keys;
+        eastl::unordered_map<eastl::string, int> map;
+        std::mutex                               writeGuard;
+        std::mutex*                              readGuard;
+
+        EastlUnorderedMapStringIndexExperiments(eastl::vector<eastl::string>& keys)
+                : AlgorithmComplexityAndReentrancyAnalysis("EastlUnorderedMapStringIndexExperiments", _numberOfElements, _numberOfElements, _numberOfElements)
+        		, readGuard(nullptr)
+        		, keys(keys) {
+            map  = eastl::unordered_map<eastl::string, int>(_numberOfElements);
+        }
+
+        void resetTables(EResetOccasion occasion) override {
+            map.clear();
+        }
+
+        // algorithms under analysis & test
+        ///////////////////////////////////
+
+        void insertAlgorithm(unsigned int i) override {
+            std::lock_guard<std::mutex> lock(writeGuard);
+        	readGuard = &writeGuard;
+            map[keys[i]] = ((int)i);
+            readGuard = nullptr;
+        }
+
+        void selectAlgorithm(unsigned int i) override {
+        	if (readGuard != nullptr) std::lock_guard<std::mutex> lock(*readGuard);
+            if (map[keys[i]] != ((int)i)) {
+                cerr << "Select: item #" << i << ", on the insert phase, should be " << ((int)i) << " but is " << map[keys[i]] << endl << flush;
+            }
+        }
+
+        void updateAlgorithm(unsigned int i) override {
+            std::lock_guard<std::mutex> lock(writeGuard);
+        	readGuard = &writeGuard;
+            map[keys[i]] = -((int)i);
+            readGuard = nullptr;
+        }
+
+        void deleteAlgorithm(unsigned int i) override {
+            std::lock_guard<std::mutex> lock(writeGuard);
+        	readGuard = &writeGuard;
+            int value = map[keys[i]];
+            map.erase(keys[i]);
+            if (value != -((int)i)) {
+                cerr << "Delete: item #" << i << ", on the update phase, should be " << -((int)i) << " but was " << value << endl << flush;
+            }
+            readGuard = nullptr;
+        }
+    };
+    {
+        setHeapTraceBaseline();
+        cout << "Generating eastl::string keys... " << flush;
+        eastl::vector<eastl::string> keys = eastl::vector<eastl::string>(_numberOfElements);
+        eastl::string                str("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+        std::random_device           rd;
+        std::mt19937                 generator(rd());
+        for (int i=0; i<_numberOfElements; i++) {
+            std::shuffle(str.begin(), str.end(), generator);
+            eastl::string key = str.substr(0, 16);
+            keys[i]           = key;
+            if (i%102400 == 0) {
+                cout << "." << flush;
+            }
+        }
+        cout << endl << endl << flush;
+        getHeapTraceInfo("eastl::string Random keys allocation costs");
+
+        setHeapTraceBaseline();
+    	EastlUnorderedMapStringIndexExperiments eastlUnorderedMapStringIndexExperiments = EastlUnorderedMapStringIndexExperiments(keys);
+        // reentrancy tests
+        for (int i=11; i<=10; i++) {
+            if (i%10 == 0) {
+            	eastlUnorderedMapStringIndexExperiments.testReentrancy(_numberOfElements, true);
+                getHeapTraceInfo("EastlUnorderedMapStringIndexExperiments total allocation costs");
+            } else {
+            	eastlUnorderedMapStringIndexExperiments.testReentrancy(_numberOfElements, false);
+                cout << "." << flush;
+            }
+        }
+        // complexity analysis
+        for (int i=10; i<=10; i++) {
+            if (i%10 == 0) {
+            	eastlUnorderedMapStringIndexExperiments.analyseComplexity(false, _threads, _threads, _threads, _threads, true);
+            } else {
+            	eastlUnorderedMapStringIndexExperiments.analyseComplexity(false, _threads, _threads, _threads, _threads, false);
+                cout << "." << flush;
+            }
+        }
+    }
+    getHeapTraceInfo("EastlUnorderedMapStringIndexExperiments total allocation costs");
+
+#undef _numberOfElements
+#undef _threads
+}
+
+int main() {
+
+//    try {
+//        hashTableExperiments();
+//    } catch (const std::exception& e) {
+//        DUMP_EXCEPTION(e, "Error while running hashTableExperiments()");
+//    }
+//    heap_trace_allocated_bytes_baseline   = 0;
+//    heap_trace_deallocated_bytes_baseline = 0;
+//    getHeapTraceInfo("hashTableExperiments allocation totals");
+
+    try {
+        memoryFootprintExperiments();
+    } catch (const std::exception& e) {
+        DUMP_EXCEPTION(e, "Error while running hashTableExperiments()");
+    }
+    heap_trace_allocated_bytes_baseline   = 0;
+    heap_trace_deallocated_bytes_baseline = 0;
+    getHeapTraceInfo("memoryFootprintExperiments allocation totals");
+
+    heap_trace_allocated_bytes_baseline   = 0;
+    heap_trace_deallocated_bytes_baseline = 0;
+    getHeapTraceInfo("Program allocation totals");
+    return EXIT_SUCCESS;
+}

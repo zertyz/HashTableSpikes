@@ -1,0 +1,33 @@
+[submodule "cpp/ccan"]
+	path = cpp/ccan
+	url = https://github.com/rustyrussell/ccan.git
+[submodule "cpp/diskhash"]
+	path = cpp/diskhash
+	url = https://github.com/luispedro/diskhash.git
+[submodule "cpp/flat_hash_map"]
+	path = cpp/flat_hash_map
+	url = https://github.com/zertyz/flat_hash_map.git
+[submodule "cpp/folly"]
+	path = cpp/folly
+	url = https://github.com/facebook/folly.git
+[submodule "cpp/hashmap"]
+	path = cpp/hashmap
+	url = https://github.com/goossaert/hashmap.git
+[submodule "cpp/hopscotch-map"]
+	path = cpp/hopscotch-map
+	url = https://github.com/Tessil/hopscotch-map.git
+[submodule "cpp/judy"]
+	path = cpp/judy
+	url = https://github.com/threatstack/judy.git
+[submodule "cpp/mmap_allocator"]
+	path = cpp/mmap_allocator
+	url = https://github.com/johannesthoma/mmap_allocator.git
+[submodule "cpp/opic"]
+	path = cpp/opic
+	url = https://github.com/dryman/opic.git
+[submodule "cpp/plf_colony"]
+	path = cpp/plf_colony
+	url = https://github.com/mattreecebentley/plf_colony.git
+[submodule "cpp/sparsepp"]
+	path = cpp/sparsepp
+	url = https://github.com/greg7mdp/sparsepp.git
