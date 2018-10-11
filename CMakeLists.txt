@@ -1,11 +1,14 @@
-# test this CMakeLists.txt in a standalone fashion as:
-#     TYPE="Release"; rm -fr $TYPE; mkdir $TYPE; cd $TYPE; cmake -G Ninja -DCMAKE_BUILD_TYPE=$TYPE ..; cmake --build .; ctest; cd ..; ls -l "$TYPE/AlgorithmComplexityAndReentrancyAnalysisSpikes"
-# The rules here should be used when importing this library into other projects
+# Build this Spike with:
+#	TYPE="Release"; rm -fr $TYPE; mkdir $TYPE; cd $TYPE; cmake -G Ninja -DCMAKE_BUILD_TYPE=$TYPE ..; cmake --build .; cd ..; ls -l "$TYPE/HashTableSpikes"
+# and run it with:
+#	Release/HashTableSpikes
+# Please, make sure the dependent libraries (listed bellow) were built with Release target.
 
 cmake_minimum_required (VERSION 3.9)
 project                (HashTableSpikes VERSION 2018.10.10)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_FLAGS    "${CMAKE_CXX_FLAGS} -march=native")	# binary is optimized, but machine dependent
 
 
 #file(GLOB_RECURSE SOURCE_FILES  cpp/*.h cpp/*.cpp)
@@ -39,6 +42,7 @@ endforeach()
 
 # EASTL library
 ###############
+# don't forget to compile EASTL with "-march=native" as well
 set(EASTL_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cpp/EASTL)
 include_directories (${EASTL_ROOT_DIR}/include/)
 include_directories (${EASTL_ROOT_DIR}/test/packages/EAAssert/include)
