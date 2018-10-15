@@ -40,21 +40,6 @@ foreach (_referencedLib AlgorithmComplexityAndReentrancyAnalysis CppUtils SplitR
 endforeach()
 
 
-# gtest library
-###############
-#add_subdirectory("cpp/gtest")
-#include_directories("cpp/gtest/include")
-#target_link_libraries(${PROJECT_NAME} PRIVATE gtest_main)
-#add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
-
-# libboost unit test framework
-##############################
-add_library          (boost_unit_test_framework STATIC     IMPORTED)
-set_target_properties(boost_unit_test_framework PROPERTIES IMPORTED_LOCATION /usr/lib/libboost_unit_test_framework.a)
-target_link_libraries(${PROJECT_NAME}                      PRIVATE boost_unit_test_framework)
-add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
-
-
 # EASTL library
 ###############
 # don't forget to compile EASTL with "-march=native" as well
@@ -69,3 +54,10 @@ include_directories(${EASTL_ROOT_DIR}/test/packages/EAThread/include)
 set(EASTL_LIBRARY debug ${EASTL_ROOT_DIR}/build/Debug/EASTL.lib optimized ${EASTL_ROOT_DIR}/Release/libEASTL.a)
 add_custom_target(NatVis SOURCES ${EASTL_ROOT_DIR}/doc/EASTL.natvis)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${EASTL_LIBRARY})
+
+# libboost unit test framework
+##############################
+add_library          (boost_unit_test_framework STATIC     IMPORTED)
+set_target_properties(boost_unit_test_framework PROPERTIES IMPORTED_LOCATION /usr/lib/libboost_unit_test_framework.a)
+target_link_libraries(${PROJECT_NAME}                      PRIVATE boost_unit_test_framework)
+add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})

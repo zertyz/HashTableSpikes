@@ -8,7 +8,6 @@
 #include <mutex>
 #define synchronized(m)     for(std::unique_lock<std::recursive_mutex> lk(m); lk; lk.unlock())
 
-//#include "gtest/gtest.h"
 #include <boost/test/unit_test.hpp>
 
 #include <TimeMeasurements.h>
@@ -27,29 +26,6 @@ using namespace mutua::testutils;
 #include <EASTL/vector.h>
 #include <EASTL/string.h>
 
-
-//TEST(IntegerFunctionTest, negative) {
-//        EXPECT_EQ(1, 1);
-//        EXPECT_EQ(1, 1);
-//        EXPECT_GT(1, 0);
-//}
-//
-//TEST(IntegerFunctionTest, DISABLED_zero) {
-//         EXPECT_EQ(1, 1);
-//}
-//
-//TEST(IntegerFunctionTest, postive) {
-//         EXPECT_EQ(1, 1);
-//         EXPECT_EQ(2, 2);
-//         EXPECT_EQ(6, 6);
-//         EXPECT_EQ(40320, 40320);
-//}
-//
-//GTEST_API_ int main(int argc, char **argv) {
-//  printf("Running main() from gtest_main.cc\n");
-//  testing::InitGoogleTest(&argc, argv);
-//  return RUN_ALL_TESTS();
-//}
 
 #define BOOST_TEST_DYN_LINK
 #define BOOST_TEST_MODULE someModuleName
