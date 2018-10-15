@@ -8,6 +8,9 @@
 #include <mutex>
 #define synchronized(m)     for(std::unique_lock<std::recursive_mutex> lk(m); lk; lk.unlock())
 
+//#include "gtest/gtest.h"
+#include <boost/test/unit_test.hpp>
+
 #include <TimeMeasurements.h>
 using namespace mutua::cpputils;
 
@@ -23,6 +26,81 @@ using namespace mutua::testutils;
 #include <EASTL/unordered_map.h>
 #include <EASTL/vector.h>
 #include <EASTL/string.h>
+
+
+//TEST(IntegerFunctionTest, negative) {
+//        EXPECT_EQ(1, 1);
+//        EXPECT_EQ(1, 1);
+//        EXPECT_GT(1, 0);
+//}
+//
+//TEST(IntegerFunctionTest, DISABLED_zero) {
+//         EXPECT_EQ(1, 1);
+//}
+//
+//TEST(IntegerFunctionTest, postive) {
+//         EXPECT_EQ(1, 1);
+//         EXPECT_EQ(2, 2);
+//         EXPECT_EQ(6, 6);
+//         EXPECT_EQ(40320, 40320);
+//}
+//
+//GTEST_API_ int main(int argc, char **argv) {
+//  printf("Running main() from gtest_main.cc\n");
+//  testing::InitGoogleTest(&argc, argv);
+//  return RUN_ALL_TESTS();
+//}
+
+#define BOOST_TEST_DYN_LINK
+#define BOOST_TEST_MODULE someModuleName
+#include <boost/test/unit_test.hpp>
+
+struct TestCaseObjects {
+    int x = 0;
+    TestCaseObjects() {
+        BOOST_TEST_MESSAGE("Setting up before test testing objects");
+    	cerr << "Starting up before test..." << endl;
+    }
+    ~TestCaseObjects() {
+        BOOST_TEST_MESSAGE("Tearing down after test testing objects");
+    	cerr << "Finishing down after test..." << endl;
+    }
+};
+
+struct TestSuiteObjects {
+    int x = 0;
+    TestSuiteObjects() {
+        //BOOST_TEST_MESSAGE("Setting up before class testing objects");
+    	cerr << "Starting up before class..." << endl;
+    }
+    ~TestSuiteObjects() {
+        //BOOST_TEST_MESSAGE("Tearing down after class testing objects");
+    	cerr << "Finishing down after class..." << endl;
+    }
+};
+
+BOOST_GLOBAL_FIXTURE(TestSuiteObjects);
+BOOST_FIXTURE_TEST_SUITE(testSuiteName, TestCaseObjects);
+
+BOOST_AUTO_TEST_CASE(testCase1) {
+	cerr << "Just running testCase1" << endl;
+    x = 1;
+    BOOST_CHECK(x == 1);
+}
+BOOST_AUTO_TEST_CASE(testCase2) {
+	cerr << "Just running testCase2" << endl;
+    BOOST_CHECK(x == 1);
+    BOOST_CHECK_EQUAL(2, x);
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+boost::unit_test::test_suite* init_unit_test_suite(int argc, char* args[]) {
+	cerr << "My boost tests are just starting..." << endl;
+	boost::unit_test::framework::master_test_suite().p_name.value = "my master test suite name";
+	return 0;
+}
+
 
 void* operator new[](size_t size, const char* pName, int flags, unsigned     debugFlags, const char* file, int line)
 {
@@ -704,7 +782,7 @@ void memoryFootprintExperiments() {
 #undef _threads
 }
 
-int main() {
+int _main() {
 
 //    try {
 //        hashTableExperiments();
