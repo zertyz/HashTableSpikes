@@ -14,3 +14,5 @@ Note: this project depends, among others, on some Mutua's libraries:
 - CppUtils
 - SplitRun
 - AlgorithmComplexityAndReentrancyAnalysis
+- Mutua's forked EASTL libraries
+- Mutua's forked Ska hash containers
