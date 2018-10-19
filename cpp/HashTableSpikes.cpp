@@ -560,10 +560,10 @@ void hashTableExperiments() {
 #define HEAP_DEBUG(_taskName, _outputFunction) {                                                      \
     size_t allocations   = heap_trace_allocated_bytes   - marked_heap_trace_allocated_bytes;          \
     size_t deallocations = heap_trace_deallocated_bytes - marked_heap_trace_deallocated_bytes;        \
-    _outputFunction(string(string(_taskName) + " allocation costs:\n" +                               \
+    _outputFunction(string(_taskName) + " allocation costs:\n" +                                      \
                     "      allocations: " + to_string(allocations)                 + " bytes\n" +     \
                     "    deallocations: " + to_string(deallocations)               + " bytes\n" +     \
-                    "         retained: " + to_string(allocations - deallocations) + " bytes\n\n"));  \
+                    "         retained: " + to_string(allocations - deallocations) + " bytes\n\n");   \
 }                                                                                                     \
 
 #define DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(_className, _ctor, _outputFunction)                   \
@@ -654,9 +654,12 @@ struct MemoryFootprintExperimentsObjects {
     	testOutput = "";
     }
 
-    static void output(string msg) {
-    	cerr << msg << flush;
+    static void output(string msg, bool toCerr) {
+    	if (toCerr) cerr << msg << flush;
     	testOutput.append(msg);
+    }
+    static void output(string msg) {
+    	output(msg, true);
     }
 
 
@@ -710,7 +713,7 @@ BOOST_AUTO_TEST_CASE(SkaByteLLMapStringIndexReentrancyTests) {
         if (i%10 == 0) {
             HEAP_MARK();
             string reentrancyTestOutput = skaByteLLMapStringIndexExperiments->testReentrancy(_numberOfElements, true);
-            output(reentrancyTestOutput);
+            output(reentrancyTestOutput, false);
             HEAP_DEBUG("SkaByteLLMapStringIndexReentrancyTests", output);
         } else {
         	skaByteLLMapStringIndexExperiments->testReentrancy(_numberOfElements, false);
@@ -726,9 +729,9 @@ BOOST_AUTO_TEST_CASE(SkaByteLLMapStringIndexComplexityAnalysis) {
     for (int i=10; i<=10; i++) {
         if (i%10 == 0) {
             HEAP_MARK();
-            string complexityAnalysisOutput = "";
-            skaByteLLMapStringIndexExperiments->analyseComplexity(false, _threads, _threads, _threads, _threads, true);
-            output(complexityAnalysisOutput);
+            string complexityAnalysisOutput;
+            tie(complexityAnalysisOutput, std::ignore, std::ignore, std::ignore, std::ignore) = skaByteLLMapStringIndexExperiments->analyseComplexity(false, _threads, _threads, _threads, _threads, true);
+            output(complexityAnalysisOutput, false);
             HEAP_DEBUG("SkaByteLLMapStringIndexComplexityAnalysis", output);
         } else {
         	skaByteLLMapStringIndexExperiments->analyseComplexity(false, _threads, _threads, _threads, _threads, false);
