@@ -10,6 +10,7 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <BetterExceptions.h>
 #include <TimeMeasurements.h>
 using namespace mutua::cpputils;
 
@@ -70,13 +71,6 @@ BOOST_AUTO_TEST_CASE(testCase2) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
-boost::unit_test::test_suite* init_unit_test_suite(int argc, char* args[]) {
-	cerr << "My boost tests are just starting..." << endl;
-	boost::unit_test::framework::master_test_suite().p_name.value = "my master test suite name";
-	return 0;
-}
-
 
 void* operator new[](size_t size, const char* pName, int flags, unsigned     debugFlags, const char* file, int line)
 {
@@ -561,103 +555,112 @@ void hashTableExperiments() {
 
 #define HEAP_MARK()                                                            \
     size_t marked_heap_trace_allocated_bytes   = heap_trace_allocated_bytes;   \
-    size_t marked_heap_trace_deallocated_bytes = heap_trace_deallocated_bytes; \
+    size_t marked_heap_trace_deallocated_bytes = heap_trace_deallocated_bytes  \
 
-#define HEAP_DEBUG(_taskName) {                                                                   \
-    size_t allocations   = heap_trace_allocated_bytes   - marked_heap_trace_allocated_bytes;      \
-    size_t deallocations = heap_trace_deallocated_bytes - marked_heap_trace_deallocated_bytes;    \
-    string msg = _taskName##s " allocation costs:\n"s +                                           \
-                 "      allocations: "s + to_string(allocations)                 + " bytes\n"s +  \
-                 "    deallocations: "s + to_string(deallocations)               + " bytes\n"s +  \
-                 "         retained: "s + to_string(allocations - deallocations) + " bytes\n\n"s; \
-    cerr << msg;                                                                                  \
-    BOOST_TEST_MESSAGE(msg);                                                                      \
-}                                                                                                 \
+#define HEAP_DEBUG(_taskName, _outputFunction) {                                                      \
+    size_t allocations   = heap_trace_allocated_bytes   - marked_heap_trace_allocated_bytes;          \
+    size_t deallocations = heap_trace_deallocated_bytes - marked_heap_trace_deallocated_bytes;        \
+    _outputFunction(string(string(_taskName) + " allocation costs:\n" +                               \
+                    "      allocations: " + to_string(allocations)                 + " bytes\n" +     \
+                    "    deallocations: " + to_string(deallocations)               + " bytes\n" +     \
+                    "         retained: " + to_string(allocations - deallocations) + " bytes\n\n"));  \
+}                                                                                                     \
 
-#define DECLARE_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(_className, _ctor)    \
-    class _className: public AlgorithmComplexityAndReentrancyAnalysis {            \
-    public:                                                                        \
-        vector<string>&                   keys;                                    \
-        ska::bytell_hash_map<string, int> map;                                     \
-        std::mutex                        writeGuard;                              \
-        std::mutex*                       readGuard;                               \
-                                                                                   \
-        _className(vector<string>& keys)                                           \
-                : AlgorithmComplexityAndReentrancyAnalysis(#_className, TestSuiteConstants::_numberOfElements, TestSuiteConstants::_numberOfElements, TestSuiteConstants::_numberOfElements)\
-        		, readGuard(nullptr)                                               \
-                , keys(keys) {                                                     \
-            map  = _ctor<string, int>(TestSuiteConstants::_numberOfElements);      \
-        }                                                                          \
-                                                                                   \
-        void resetTables(EResetOccasion occasion) override {                       \
-            map.clear();                                                           \
-        }                                                                          \
-                                                                                   \
-        /* algorithms under analysis & test */                                     \
-        /* //////////////////////////////// */                                     \
-                                                                                   \
-        void insertAlgorithm(unsigned int i) override {                            \
-            std::lock_guard<std::mutex> lock(writeGuard);                          \
-        	readGuard = &writeGuard;                                               \
-            map[keys[i]] = ((int)i);                                               \
-            readGuard = nullptr;                                                   \
-        }                                                                          \
-                                                                                   \
-        void selectAlgorithm(unsigned int i) override {                            \
-        	if (readGuard != nullptr) std::lock_guard<std::mutex> lock(*readGuard);\
-            if (map[keys[i]] != ((int)i)) {                                        \
-                cerr << "Select: item #" << i << ", on the insert phase, should be " << ((int)i) << " but is " << map[keys[i]] << endl << flush;\
-            }                                                                      \
-        }                                                                          \
-                                                                                   \
-        void updateAlgorithm(unsigned int i) override {                            \
-            std::lock_guard<std::mutex> lock(writeGuard);                          \
-        	readGuard = &writeGuard;                                               \
-            map[keys[i]] = -((int)i);                                              \
-            readGuard = nullptr;                                                   \
-        }                                                                          \
-                                                                                   \
-        void deleteAlgorithm(unsigned int i) override {                            \
-            std::lock_guard<std::mutex> lock(writeGuard);                          \
-        	readGuard = &writeGuard;                                               \
-            int value = map[keys[i]];                                              \
-            map.erase(keys[i]);                                                    \
-            if (value != -((int)i)) {                                              \
-                cerr << "Delete: item #" << i << ", on the update phase, should be " << -((int)i) << " but was " << value << endl << flush;\
-            }                                                                      \
-            readGuard = nullptr;                                                   \
-        }                                                                          \
-    }                                                                              \
+#define DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(_className, _ctor, _outputFunction)                   \
+    class _className: public AlgorithmComplexityAndReentrancyAnalysis {                                                          \
+    public:                                                                                                                      \
+        vector<string>&                   keys;                                                                                  \
+        ska::bytell_hash_map<string, int> map;                                                                                   \
+        std::mutex                        writeGuard;                                                                            \
+        std::mutex*                       readGuard;                                                                             \
+                                                                                                                                 \
+        _className(vector<string>& keys)                                                                                         \
+                : AlgorithmComplexityAndReentrancyAnalysis(#_className, _numberOfElements, _numberOfElements, _numberOfElements) \
+                , keys(keys)                                                                                                     \
+                , readGuard(nullptr) {                                                                                           \
+            map  = _ctor<string, int>(_numberOfElements);                                                                        \
+        }                                                                                                                        \
+                                                                                                                                 \
+        void resetTables(EResetOccasion occasion) override {                                                                     \
+            map.clear();                                                                                                         \
+        }                                                                                                                        \
+                                                                                                                                 \
+        /* algorithms under analysis & test */                                                                                   \
+        /* //////////////////////////////// */                                                                                   \
+                                                                                                                                 \
+        void insertAlgorithm(unsigned int i) override {                                                                          \
+            std::lock_guard<std::mutex> lock(writeGuard);                                                                        \
+        	readGuard = &writeGuard;                                                                                             \
+            map[keys[i]] = ((int)i);                                                                                             \
+            readGuard = nullptr;                                                                                                 \
+        }                                                                                                                        \
+                                                                                                                                 \
+        void selectAlgorithm(unsigned int i) override {                                                                          \
+        	if (readGuard != nullptr) std::lock_guard<std::mutex> lock(*readGuard);                                              \
+            if (map[keys[i]] != ((int)i)) {                                                                                      \
+            	_outputFunction("Select: item #" + to_string(i) + ", on the insert phase, should be " + to_string((int)i) +      \
+            	                " but is " + to_string(map[keys[i]]) + "\n");                                                    \
+            }                                                                                                                    \
+        }                                                                                                                        \
+                                                                                                                                 \
+        void updateAlgorithm(unsigned int i) override {                                                                          \
+            std::lock_guard<std::mutex> lock(writeGuard);                                                                        \
+        	readGuard = &writeGuard;                                                                                             \
+            map[keys[i]] = -((int)i);                                                                                            \
+            readGuard = nullptr;                                                                                                 \
+        }                                                                                                                        \
+                                                                                                                                 \
+        void deleteAlgorithm(unsigned int i) override {                                                                          \
+            std::lock_guard<std::mutex> lock(writeGuard);                                                                        \
+        	readGuard = &writeGuard;                                                                                             \
+            int value = map[keys[i]];                                                                                            \
+            map.erase(keys[i]);                                                                                                  \
+            if (value != -((int)i)) {                                                                                            \
+                _outputFunction("Delete: item #" + to_string(i) + ", on the update phase, should be " + to_string(-((int)i)) +   \
+                                " but was " + to_string(value) + "\n");                                                          \
+            }                                                                                                                    \
+            readGuard = nullptr;                                                                                                 \
+        }                                                                                                                        \
+    }                                                                                                                            \
 
-struct TestSuiteConstants {
-    static constexpr int _numberOfElements = 4'096'000;
-    static constexpr int _threads          = 4;
-};
 
 struct MemoryFootprintExperimentsObjects {
+
+    // test case constants
+    static constexpr int _numberOfElements = 4'096'000;
+    static constexpr int _threads          = 4;
 
     // test case data
     static std::vector<std::string>* stdStringKeys;
 
     // test case instances
-    DECLARE_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(SkaByteLLMapStringIndexExperiments, ska::bytell_hash_map);
+    DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(SkaByteLLMapStringIndexExperiments, ska::bytell_hash_map, MemoryFootprintExperimentsObjects::output);
     static SkaByteLLMapStringIndexExperiments* skaByteLLMapStringIndexExperiments;
+
+    static string testOutput;
 
 
     MemoryFootprintExperimentsObjects() {
-        cerr << endl << endl;
-        cerr << "Memory Footprint Experiments:" << endl;
-        cerr << "============================ " << endl << endl;
-        stdStringKeys                      = nullptr;
-        skaByteLLMapStringIndexExperiments = nullptr;
+    	static bool firstRun = true;
+    	if (firstRun) {
+			cerr << endl << endl;
+			cerr << "Memory Footprint Experiments:" << endl;
+			cerr << "============================ " << endl << endl;
+			firstRun = false;
+    	}
     }
     ~MemoryFootprintExperimentsObjects() {
-        delete stdStringKeys;
-        delete skaByteLLMapStringIndexExperiments;
+    	BOOST_TEST_MESSAGE("\n" + testOutput);
+    	testOutput = "";
+    }
+
+    static void output(string msg) {
+    	cerr << msg << flush;
+    	testOutput.append(msg);
     }
 
 
-    static void assureSkaByteLLMapStringIndexExperiments() {
+    void assureSkaByteLLMapStringIndexExperiments() {
 
         if (skaByteLLMapStringIndexExperiments) return;
 
@@ -665,46 +668,52 @@ struct MemoryFootprintExperimentsObjects {
         skaByteLLMapStringIndexExperiments = new SkaByteLLMapStringIndexExperiments(*stdStringKeys);
     }
 
-    static void assureStdStringKeys() {
+    void assureStdStringKeys() {
 
         if (stdStringKeys) return;
 
         HEAP_MARK();
 
-        stdStringKeys = new std::vector<std::string>(TestSuiteConstants::_numberOfElements);
+        stdStringKeys = new std::vector<std::string>(_numberOfElements);
         
-        cerr << "Generating std::string keys... " << flush;
+        output("Generating std::string keys... ");
         std::string         str("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
         std::random_device  rd;
         std::mt19937        generator(rd());
-        for (int i=0; i<TestSuiteConstants::_numberOfElements; i++) {
+        for (int i=0; i<_numberOfElements; i++) {
             std::shuffle(str.begin(), str.end(), generator);
             string key       = str.substr(0, 16);
             (*stdStringKeys)[i] = key;
             if (i%102400 == 0) {
-                cout << "." << flush;
+                output(".");
             }
         }
 
-        cout << endl << endl << flush;
-        HEAP_DEBUG("std::string " + to_string(TestSuiteConstants::_numberOfElements) + " Random keys");
+        output("\n\n");
+        HEAP_DEBUG("std::string " + to_string(_numberOfElements) + " Random keys", output);
     }
 };
+// static initializers
+std::vector<std::string>*                                              MemoryFootprintExperimentsObjects::stdStringKeys                      = nullptr;
+MemoryFootprintExperimentsObjects::SkaByteLLMapStringIndexExperiments* MemoryFootprintExperimentsObjects::skaByteLLMapStringIndexExperiments = nullptr;
+string                                                                 MemoryFootprintExperimentsObjects::testOutput                         = "";
 
-BOOST_TEST_GLOBAL_FIXTURE(MemoryFootprintExperimentsObjects);
-BOOST_FIXTURE_TEST_SUITE(MemoryFootprintExperiments, TestSuiteConstants);
+
+//BOOST_TEST_GLOBAL_FIXTURE(MemoryFootprintExperimentsObjects);
+BOOST_FIXTURE_TEST_SUITE(MemoryFootprintExperiments, MemoryFootprintExperimentsObjects);
 
 BOOST_AUTO_TEST_CASE(SkaByteLLMapStringIndexReentrancyTests) {
     
-    MemoryFootprintExperimentsObjects::assureSkaByteLLMapStringIndexExperiments();
+	assureSkaByteLLMapStringIndexExperiments();
 
-    for (int i=11; i<=10; i++) {
+    for (int i=10; i<=10; i++) {
         if (i%10 == 0) {
-            HEAP_MARK()
-            MemoryFootprintExperimentsObjects::skaByteLLMapStringIndexExperiments->testReentrancy(_numberOfElements, true);
-            HEAP_DEBUG("SkaByteLLMapStringIndexReentrancyTests");
+            HEAP_MARK();
+            string reentrancyTestOutput = skaByteLLMapStringIndexExperiments->testReentrancy(_numberOfElements, true);
+            output(reentrancyTestOutput);
+            HEAP_DEBUG("SkaByteLLMapStringIndexReentrancyTests", output);
         } else {
-            MemoryFootprintExperimentsObjects::skaByteLLMapStringIndexExperiments->testReentrancy(_numberOfElements, false);
+        	skaByteLLMapStringIndexExperiments->testReentrancy(_numberOfElements, false);
             cerr << "." << flush;
         }
     }
@@ -712,15 +721,17 @@ BOOST_AUTO_TEST_CASE(SkaByteLLMapStringIndexReentrancyTests) {
 
 BOOST_AUTO_TEST_CASE(SkaByteLLMapStringIndexComplexityAnalysis) {
     
-    MemoryFootprintExperimentsObjects::assureSkaByteLLMapStringIndexExperiments();
+	assureSkaByteLLMapStringIndexExperiments();
 
     for (int i=10; i<=10; i++) {
         if (i%10 == 0) {
-            HEAP_MARK()
-            MemoryFootprintExperimentsObjects::skaByteLLMapStringIndexExperiments->analyseComplexity(false, _threads, _threads, _threads, _threads, true);
-            HEAP_DEBUG("SkaByteLLMapStringIndexComplexityAnalysis");
+            HEAP_MARK();
+            string complexityAnalysisOutput = "";
+            skaByteLLMapStringIndexExperiments->analyseComplexity(false, _threads, _threads, _threads, _threads, true);
+            output(complexityAnalysisOutput);
+            HEAP_DEBUG("SkaByteLLMapStringIndexComplexityAnalysis", output);
         } else {
-            MemoryFootprintExperimentsObjects::skaByteLLMapStringIndexExperiments->analyseComplexity(false, _threads, _threads, _threads, _threads, false);
+        	skaByteLLMapStringIndexExperiments->analyseComplexity(false, _threads, _threads, _threads, _threads, false);
             cerr << "." << flush;
         }
     }
@@ -728,7 +739,7 @@ BOOST_AUTO_TEST_CASE(SkaByteLLMapStringIndexComplexityAnalysis) {
 }
 
 BOOST_AUTO_TEST_SUITE_END();
-#undef DECLARE_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS
+#undef DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS
 
 void memoryFootprintExperiments() {
 
@@ -932,6 +943,16 @@ void memoryFootprintExperiments() {
 #undef _numberOfElements
 #undef _threads
 }
+
+
+boost::unit_test::test_suite* init_unit_test_suite(int argc, char* args[]) {
+	cerr << "Starting Boost Tests. Initializing static variables..." << endl;
+	boost::unit_test::framework::master_test_suite().p_name.value = "my master test suite name";
+	return 0;
+}
+
+
+
 
 int _main() {
 
