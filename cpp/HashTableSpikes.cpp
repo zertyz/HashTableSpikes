@@ -566,19 +566,19 @@ void hashTableExperiments() {
                     "         retained: " + to_string(allocations - deallocations) + " bytes\n\n");   \
 }                                                                                                     \
 
-#define DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(_className, _ctor, _outputFunction)                   \
+#define DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(_className, _mapType, _vectorType, _keyType, _outputFunction, _mapInitExptr)  \
     class _className: public AlgorithmComplexityAndReentrancyAnalysis {                                                          \
     public:                                                                                                                      \
-        vector<string>&                   keys;                                                                                  \
-        ska::bytell_hash_map<string, int> map;                                                                                   \
-        std::mutex                        writeGuard;                                                                            \
-        std::mutex*                       readGuard;                                                                             \
+		_vectorType<_keyType>&              keys;                                                                                \
+        _mapType<_keyType, int>             map;                                                                                 \
+        std::mutex                          writeGuard;                                                                          \
+        std::mutex*                         readGuard;                                                                           \
                                                                                                                                  \
-        _className(vector<string>& keys)                                                                                         \
+        _className(_vectorType<_keyType>& keys)                                                                                         \
                 : AlgorithmComplexityAndReentrancyAnalysis(#_className, _numberOfElements, _numberOfElements, _numberOfElements) \
                 , keys(keys)                                                                                                     \
                 , readGuard(nullptr) {                                                                                           \
-            map  = _ctor<string, int>(_numberOfElements);                                                                        \
+            map  = _mapType<_keyType, int>(_mapInitExptr);                                                                   \
         }                                                                                                                        \
                                                                                                                                  \
         void resetTables(EResetOccasion occasion) override {                                                                     \
@@ -623,20 +623,27 @@ void hashTableExperiments() {
         }                                                                                                                        \
     }                                                                                                                            \
 
-
 struct MemoryFootprintExperimentsObjects {
 
     // test case constants
     static constexpr int _numberOfElements = 4'096'000;
     static constexpr int _threads          = 4;
 
-    // test case data
-    static std::vector<std::string>* stdStringKeys;
-
     // test case instances
-    DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(SkaByteLLMapStringIndexExperiments, ska::bytell_hash_map, MemoryFootprintExperimentsObjects::output);
-    static SkaByteLLMapStringIndexExperiments* skaByteLLMapStringIndexExperiments;
+    DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(StandardMapStringIndexExperiments,          std::map,             std::vector, std::string,     MemoryFootprintExperimentsObjects::output, /* empty param */);
+    static StandardMapStringIndexExperiments*          standardMapStringIndexExperiments;
+    DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(StandardUnorderedMapStringIndexExperiments, std::unordered_map,   std::vector, std::string,     MemoryFootprintExperimentsObjects::output, _numberOfElements);
+    static StandardUnorderedMapStringIndexExperiments* standardUnorderedMapStringIndexExperiments;
+    DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(SkaByteLLMapStringIndexExperiments,         ska::bytell_hash_map, std::vector, std::string,     MemoryFootprintExperimentsObjects::output, _numberOfElements);
+    static SkaByteLLMapStringIndexExperiments*         skaByteLLMapStringIndexExperiments;
+    DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(EastlUnorderedMapStringIndexExperiments,    eastl::unordered_map, eastl::vector, eastl::string, MemoryFootprintExperimentsObjects::output, _numberOfElements);
+    static EastlUnorderedMapStringIndexExperiments*    eastlUnorderedMapStringIndexExperiments;
 
+    // test case data
+    static   std::vector  <std::string>* stdStringKeys;		// keys for all by EASTL containers
+    static eastl::vector<eastl::string>* eastlStringKeys;
+
+    // output messages for boost tests
     static string testOutput;
 
 
@@ -662,87 +669,126 @@ struct MemoryFootprintExperimentsObjects {
     	output(msg, true);
     }
 
-
+    void assureStandardMapStringIndexExperiments() {
+    	BOOST_ASSERT_MSG(!standardMapStringIndexExperiments, "tests must never leave leftovers -- containers must be deleted and set to 'nullptr' after use");
+        assureStdStringKeys();
+        standardMapStringIndexExperiments = new StandardMapStringIndexExperiments(*stdStringKeys);
+    }
+    void assureStandardUnorderedMapStringIndexExperiments() {
+    	BOOST_ASSERT_MSG(!standardUnorderedMapStringIndexExperiments, "tests must never leave leftovers -- containers must be deleted and set to 'nullptr' after use");
+        assureStdStringKeys();
+        standardUnorderedMapStringIndexExperiments = new StandardUnorderedMapStringIndexExperiments(*stdStringKeys);
+    }
     void assureSkaByteLLMapStringIndexExperiments() {
-
+    	BOOST_ASSERT_MSG(!skaByteLLMapStringIndexExperiments, "tests must never leave leftovers -- containers must be deleted and set to 'nullptr' after use");
         if (skaByteLLMapStringIndexExperiments) return;
-
         assureStdStringKeys();
         skaByteLLMapStringIndexExperiments = new SkaByteLLMapStringIndexExperiments(*stdStringKeys);
     }
+    void assureEastlUnorderedMapStringIndexExperiments() {
+    	BOOST_ASSERT_MSG(!eastlUnorderedMapStringIndexExperiments, "tests must never leave leftovers -- containers must be deleted and set to 'nullptr' after use");
+        assureEastlStringKeys();
+        eastlUnorderedMapStringIndexExperiments = new EastlUnorderedMapStringIndexExperiments(*eastlStringKeys);
+    }
+
+#define GENERATE_KEYS(_keyStringType, _keysContainer, _vectorType)                                \
+        HEAP_MARK();                                                                              \
+        output("Generating " #_keyStringType " keys... ");                                        \
+        _keysContainer = new _vectorType<_keyStringType>(_numberOfElements);                      \
+        _keyStringType     str("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"); \
+        std::random_device rd;                                                                    \
+        std::mt19937       generator(rd());                                                       \
+        for (int i=0; i<_numberOfElements; i++) {                                                 \
+            std::shuffle(str.begin(), str.end(), generator);                                      \
+            _keyStringType key         = str.substr(0, 16);                                       \
+            (*_keysContainer)[i] = key;                                                           \
+            if (i%102400 == 0) {                                                                  \
+                output(".");                                                                      \
+            }                                                                                     \
+        }                                                                                         \
+        output("\n\n");                                                                           \
+        HEAP_DEBUG(#_keyStringType " " + to_string(_numberOfElements) + " Random keys", output);  \
 
     void assureStdStringKeys() {
-
         if (stdStringKeys) return;
-
-        HEAP_MARK();
-
-        stdStringKeys = new std::vector<std::string>(_numberOfElements);
-        
-        output("Generating std::string keys... ");
-        std::string         str("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
-        std::random_device  rd;
-        std::mt19937        generator(rd());
-        for (int i=0; i<_numberOfElements; i++) {
-            std::shuffle(str.begin(), str.end(), generator);
-            string key       = str.substr(0, 16);
-            (*stdStringKeys)[i] = key;
-            if (i%102400 == 0) {
-                output(".");
-            }
-        }
-
-        output("\n\n");
-        HEAP_DEBUG("std::string " + to_string(_numberOfElements) + " Random keys", output);
+        if (eastlStringKeys) output("Deleting no longer needed 'eastlStringKeys'.\n"); delete eastlStringKeys;	// free unneeded memory
+        GENERATE_KEYS(std::string, stdStringKeys, std::vector);
     }
+    void assureEastlStringKeys() {
+    	if (eastlStringKeys) return;
+        if (stdStringKeys) output("Deleting no longer needed 'stdStringKeys'.\n"); delete stdStringKeys;		// free unneeded memory
+        GENERATE_KEYS(eastl::string, eastlStringKeys, eastl::vector);
+    }
+
+#undef GENERATE_KEYS
 };
 // static initializers
-std::vector<std::string>*                                              MemoryFootprintExperimentsObjects::stdStringKeys                      = nullptr;
-MemoryFootprintExperimentsObjects::SkaByteLLMapStringIndexExperiments* MemoryFootprintExperimentsObjects::skaByteLLMapStringIndexExperiments = nullptr;
-string                                                                 MemoryFootprintExperimentsObjects::testOutput                         = "";
+  std::vector  <std::string>*                                                  MemoryFootprintExperimentsObjects::stdStringKeys                              = nullptr;
+eastl::vector<eastl::string>*                                                  MemoryFootprintExperimentsObjects::eastlStringKeys                            = nullptr;
+MemoryFootprintExperimentsObjects::StandardMapStringIndexExperiments*          MemoryFootprintExperimentsObjects::standardMapStringIndexExperiments          = nullptr;
+MemoryFootprintExperimentsObjects::StandardUnorderedMapStringIndexExperiments* MemoryFootprintExperimentsObjects::standardUnorderedMapStringIndexExperiments = nullptr;
+MemoryFootprintExperimentsObjects::SkaByteLLMapStringIndexExperiments*         MemoryFootprintExperimentsObjects::skaByteLLMapStringIndexExperiments         = nullptr;
+MemoryFootprintExperimentsObjects::EastlUnorderedMapStringIndexExperiments*    MemoryFootprintExperimentsObjects::eastlUnorderedMapStringIndexExperiments    = nullptr;
+string                                                                         MemoryFootprintExperimentsObjects::testOutput                                 = "";
+#undef DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS
 
 
 //BOOST_TEST_GLOBAL_FIXTURE(MemoryFootprintExperimentsObjects);
 BOOST_FIXTURE_TEST_SUITE(MemoryFootprintExperiments, MemoryFootprintExperimentsObjects);
 
-BOOST_AUTO_TEST_CASE(SkaByteLLMapStringIndexReentrancyTests) {
-    
-	assureSkaByteLLMapStringIndexExperiments();
+#define DECLARE_REENTRANCY_TEST(_testName, _assureFunction, _mapContainer)                           \
+BOOST_AUTO_TEST_CASE(_testName) {                                                                    \
+    _assureFunction();                                                                               \
+    HEAP_MARK();                                                                                     \
+    for (int i=10; i<=10; i++) {                                                                     \
+        if (i%10 == 0) {                                                                             \
+            string reentrancyTestOutput = _mapContainer->testReentrancy(_numberOfElements, true);    \
+            output(reentrancyTestOutput, false);                                                     \
+        } else {                                                                                     \
+        	_mapContainer->testReentrancy(_numberOfElements, false);                                 \
+            output(".");                                                                             \
+        }                                                                                            \
+    }                                                                                                \
+    HEAP_DEBUG(#_testName, output);                                                                  \
+    delete _mapContainer;                                                                            \
+    _mapContainer = nullptr;                                                                         \
+}                                                                                                    \
 
-    for (int i=10; i<=10; i++) {
-        if (i%10 == 0) {
-            HEAP_MARK();
-            string reentrancyTestOutput = skaByteLLMapStringIndexExperiments->testReentrancy(_numberOfElements, true);
-            output(reentrancyTestOutput, false);
-            HEAP_DEBUG("SkaByteLLMapStringIndexReentrancyTests", output);
-        } else {
-        	skaByteLLMapStringIndexExperiments->testReentrancy(_numberOfElements, false);
-            cerr << "." << flush;
-        }
-    }
-}
+#define DECLARE_COMPLEXITY_ANALYSIS_TEST(_testName, _assureFunction, _mapContainer)                  \
+BOOST_AUTO_TEST_CASE(_testName) {                                                                    \
+	_assureFunction();                                                                               \
+	HEAP_MARK();                                                                                     \
+	for (int i=10; i<=10; i++) {                                                                     \
+		if (i%10 == 0) {                                                                             \
+			string complexityAnalysisOutput;                                                         \
+			tie(complexityAnalysisOutput, std::ignore, std::ignore, std::ignore, std::ignore) = _mapContainer->analyseComplexity(false, _threads, _threads, _threads, _threads, true); \
+			output(complexityAnalysisOutput, false);                                                 \
+		} else {                                                                                     \
+			_mapContainer->analyseComplexity(false, _threads, _threads, _threads, _threads, false);  \
+			output(".");                                                                             \
+		}                                                                                            \
+	}                                                                                                \
+	HEAP_DEBUG(#_testName, output);                                                                  \
+	delete _mapContainer;                                                                            \
+	_mapContainer = nullptr;                                                                         \
+}                                                                                                    \
 
-BOOST_AUTO_TEST_CASE(SkaByteLLMapStringIndexComplexityAnalysis) {
-    
-	assureSkaByteLLMapStringIndexExperiments();
+DECLARE_REENTRANCY_TEST         (StandardMapStringIndexReentrancyTests,    assureStandardMapStringIndexExperiments, standardMapStringIndexExperiments);
+DECLARE_COMPLEXITY_ANALYSIS_TEST(StandardMapStringIndexComplexityAnalysis, assureStandardMapStringIndexExperiments, standardMapStringIndexExperiments);
 
-    for (int i=10; i<=10; i++) {
-        if (i%10 == 0) {
-            HEAP_MARK();
-            string complexityAnalysisOutput;
-            tie(complexityAnalysisOutput, std::ignore, std::ignore, std::ignore, std::ignore) = skaByteLLMapStringIndexExperiments->analyseComplexity(false, _threads, _threads, _threads, _threads, true);
-            output(complexityAnalysisOutput, false);
-            HEAP_DEBUG("SkaByteLLMapStringIndexComplexityAnalysis", output);
-        } else {
-        	skaByteLLMapStringIndexExperiments->analyseComplexity(false, _threads, _threads, _threads, _threads, false);
-            cerr << "." << flush;
-        }
-    }
+DECLARE_REENTRANCY_TEST         (StandardUnorderedMapStringIndexReentrancyTests,    assureStandardUnorderedMapStringIndexExperiments, standardUnorderedMapStringIndexExperiments);
+DECLARE_COMPLEXITY_ANALYSIS_TEST(StandardUnorderedMapStringIndexComplexityAnalysis, assureStandardUnorderedMapStringIndexExperiments, standardUnorderedMapStringIndexExperiments);
 
-}
+DECLARE_REENTRANCY_TEST         (SkaByteLLMapStringIndexReentrancyTests,    assureSkaByteLLMapStringIndexExperiments, skaByteLLMapStringIndexExperiments);
+DECLARE_COMPLEXITY_ANALYSIS_TEST(SkaByteLLMapStringIndexComplexityAnalysis, assureSkaByteLLMapStringIndexExperiments, skaByteLLMapStringIndexExperiments);
+
+DECLARE_REENTRANCY_TEST         (EastlUnorderedMapStringIndexReentrancyTests,    assureEastlUnorderedMapStringIndexExperiments, eastlUnorderedMapStringIndexExperiments);
+DECLARE_COMPLEXITY_ANALYSIS_TEST(EastlUnorderedMapStringIndexComplexityAnalysis, assureEastlUnorderedMapStringIndexExperiments, eastlUnorderedMapStringIndexExperiments);
+
+#undef DECLARE_REENTRANCY_TEST
+#undef DECLARE_COMPLEXITY_ANALYSIS_TEST
 
 BOOST_AUTO_TEST_SUITE_END();
-#undef DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS
 
 void memoryFootprintExperiments() {
 
