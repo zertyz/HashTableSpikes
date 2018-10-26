@@ -10,6 +10,7 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <MutuaTestMacros.h>
 #include <BetterExceptions.h>
 #include <TimeMeasurements.h>
 using namespace mutua::cpputils;
@@ -29,7 +30,7 @@ using namespace mutua::testutils;
 
 
 #define BOOST_TEST_DYN_LINK
-#define BOOST_TEST_MODULE someModuleName
+#define BOOST_TEST_MODULE HashTableSpikes
 #include <boost/test/unit_test.hpp>
 
 struct TestCaseObjects {
@@ -82,44 +83,6 @@ void* operator new[](size_t size, size_t alignment, size_t alignmentOffset, cons
     return malloc(size);
 }
 
-#define HEAP_TRACE
-
-#include <new>
-
-static size_t                             heap_trace_allocated_bytes            = 0;
-static size_t                             heap_trace_deallocated_bytes          = 0;
-static size_t                             heap_trace_allocated_bytes_baseline   = 0;
-static size_t                             heap_trace_deallocated_bytes_baseline = 0;
-
-void* operator new(std::size_t size) {
-    void* alloc_entry = std::malloc(size);
-    if (!alloc_entry) {
-        throw std::bad_alloc();
-    }
-    heap_trace_allocated_bytes += *(size_t*)(((size_t)alloc_entry)-sizeof(size_t));
-    //std::cout << "(-1) equals " << size << " : " << *(size_t*)(((size_t)alloc_entry)-sizeof(size_t)) << std::endl << std::flush;
-    return alloc_entry;
-}
-
-void operator delete(void* alloc_entry) noexcept {
-    heap_trace_deallocated_bytes += *(size_t*)(((size_t)alloc_entry)-sizeof(size_t));
-    //std::cout << "(-1) : " << *(size_t*)(((size_t)alloc_entry)-sizeof(size_t)) << std::endl << std::flush;
-    std::free(alloc_entry);
-}
-
-void setHeapTraceBaseline() {
-    heap_trace_allocated_bytes_baseline   = heap_trace_allocated_bytes;
-    heap_trace_deallocated_bytes_baseline = heap_trace_deallocated_bytes;
-}
-
-void getHeapTraceInfo(string title) {
-    std::cout << "\t" << title << ":" << std::endl;
-    std::cout << "\t\tAllocations:   " << (heap_trace_allocated_bytes   - heap_trace_allocated_bytes_baseline)   << " bytes" << std::endl;
-    std::cout << "\t\tDeallocations: " << (heap_trace_deallocated_bytes - heap_trace_deallocated_bytes_baseline) << " bytes" << std::endl;
-    std::cout << std::endl << std::flush;
-}
-
-
 // test & exploration functions
 ///////////////////////////////
 
@@ -132,7 +95,7 @@ void hashTableExperiments() {
     #define _numberOfElements 2'048'000
     #define _threads          4
 
-    setHeapTraceBaseline();
+    //setHeapTraceBaseline();
 
     cout << "Generating keys... " << flush;
     std::vector<string> keys = std::vector<string>(_numberOfElements);
@@ -150,7 +113,7 @@ void hashTableExperiments() {
 
     cout << endl << endl << flush;
 
-    getHeapTraceInfo("Random keys allocation costs");
+    //getHeapTraceInfo("Random keys allocation costs");
 
     class StandardMapStringIndexExperiments: public AlgorithmComplexityAndReentrancyAnalysis {
     public:
@@ -205,14 +168,14 @@ void hashTableExperiments() {
             readGuard = nullptr;
         }
     };
-    setHeapTraceBaseline();
+    //setHeapTraceBaseline();
     {
         StandardMapStringIndexExperiments standardMapStringIndexExperiments = StandardMapStringIndexExperiments(keys);
         // reentrancy tests
         for (int i=11; i<=10; i++) {
             if (i%10 == 0) {
                 standardMapStringIndexExperiments.testReentrancy(_numberOfElements, true);
-                getHeapTraceInfo("StandardMapStringIndexExperiments first pass allocation costs");
+//                getHeapTraceInfo("StandardMapStringIndexExperiments first pass allocation costs");
             } else {
                 standardMapStringIndexExperiments.testReentrancy(_numberOfElements, false);
                 cout << "." << flush;
@@ -228,7 +191,7 @@ void hashTableExperiments() {
             }
         }
     }
-    getHeapTraceInfo("StandardMapStringIndexExperiments total allocation costs");
+//    getHeapTraceInfo("StandardMapStringIndexExperiments total allocation costs");
 
     class UnorderedMapStringIndexExperiments: public AlgorithmComplexityAndReentrancyAnalysis {
     public:
@@ -283,14 +246,14 @@ void hashTableExperiments() {
             readGuard = nullptr;
         }
     };
-    setHeapTraceBaseline();
+//    setHeapTraceBaseline();
     {
         UnorderedMapStringIndexExperiments unorderedMapStringIndexExperiments = UnorderedMapStringIndexExperiments(keys);
         // reentrancy tests
         for (int i=11; i<=10; i++) {
             if (i%10 == 0) {
                 unorderedMapStringIndexExperiments.testReentrancy(_numberOfElements, true);
-                getHeapTraceInfo("UnorderedMapStringIndexExperiments first pass allocation costs");
+//                getHeapTraceInfo("UnorderedMapStringIndexExperiments first pass allocation costs");
             } else {
                 unorderedMapStringIndexExperiments.testReentrancy(_numberOfElements, false);
                 cout << "." << flush;
@@ -306,7 +269,7 @@ void hashTableExperiments() {
             }
         }
     }
-    getHeapTraceInfo("UnorderedMapStringIndexExperiments total allocation costs");
+//    getHeapTraceInfo("UnorderedMapStringIndexExperiments total allocation costs");
 
     class SkaUnorderedMapStringIndexExperiments: public AlgorithmComplexityAndReentrancyAnalysis {
     public:
@@ -361,14 +324,14 @@ void hashTableExperiments() {
             readGuard = nullptr;
         }
     };
-    setHeapTraceBaseline();
+//    setHeapTraceBaseline();
     {
         SkaUnorderedMapStringIndexExperiments skaUnorderedMapStringIndexExperiments = SkaUnorderedMapStringIndexExperiments(keys);
         // reentrancy tests
         for (int i=11; i<=10; i++) {
             if (i%10 == 0) {
                 skaUnorderedMapStringIndexExperiments.testReentrancy(_numberOfElements, true);
-                getHeapTraceInfo("SkaUnorderedMapStringIndexExperiments total allocation costs");
+//                getHeapTraceInfo("SkaUnorderedMapStringIndexExperiments total allocation costs");
             } else {
                 skaUnorderedMapStringIndexExperiments.testReentrancy(_numberOfElements, false);
                 cout << "." << flush;
@@ -384,7 +347,7 @@ void hashTableExperiments() {
             }
         }
     }
-    getHeapTraceInfo("SkaUnorderedMapStringIndexExperiments total allocation costs");
+//    getHeapTraceInfo("SkaUnorderedMapStringIndexExperiments total allocation costs");
 
     class SkaByteLLMapStringIndexExperiments: public AlgorithmComplexityAndReentrancyAnalysis {
     public:
@@ -439,14 +402,14 @@ void hashTableExperiments() {
             readGuard = nullptr;
         }
     };
-    setHeapTraceBaseline();
+//    setHeapTraceBaseline();
     {
         SkaByteLLMapStringIndexExperiments skaByteLLMapStringIndexExperiments = SkaByteLLMapStringIndexExperiments(keys);
         // reentrancy tests
         for (int i=11; i<=10; i++) {
             if (i%10 == 0) {
                 skaByteLLMapStringIndexExperiments.testReentrancy(_numberOfElements, true);
-                getHeapTraceInfo("SkaByteLLMapStringIndexExperiments total allocation costs");
+//                getHeapTraceInfo("SkaByteLLMapStringIndexExperiments total allocation costs");
             } else {
                 skaByteLLMapStringIndexExperiments.testReentrancy(_numberOfElements, false);
                 cout << "." << flush;
@@ -462,7 +425,7 @@ void hashTableExperiments() {
             }
         }
     }
-    getHeapTraceInfo("SkaByteLLMapStringIndexExperiments total allocation costs");
+//    getHeapTraceInfo("SkaByteLLMapStringIndexExperiments total allocation costs");
 
     class EastlUnorderedMapStringIndexExperiments: public AlgorithmComplexityAndReentrancyAnalysis {
     public:
@@ -520,14 +483,14 @@ void hashTableExperiments() {
             readGuard = nullptr;
         }
     };
-    setHeapTraceBaseline();
+//    setHeapTraceBaseline();
     {
     	EastlUnorderedMapStringIndexExperiments eastlUnorderedMapStringIndexExperiments = EastlUnorderedMapStringIndexExperiments(keys);
         // reentrancy tests
         for (int i=11; i<=10; i++) {
             if (i%10 == 0) {
             	eastlUnorderedMapStringIndexExperiments.testReentrancy(_numberOfElements, true);
-                getHeapTraceInfo("EastlUnorderedMapStringIndexExperiments total allocation costs");
+//                getHeapTraceInfo("EastlUnorderedMapStringIndexExperiments total allocation costs");
             } else {
             	eastlUnorderedMapStringIndexExperiments.testReentrancy(_numberOfElements, false);
                 cout << "." << flush;
@@ -543,7 +506,7 @@ void hashTableExperiments() {
             }
         }
     }
-    getHeapTraceInfo("EastlUnorderedMapStringIndexExperiments total allocation costs");
+//    getHeapTraceInfo("EastlUnorderedMapStringIndexExperiments total allocation costs");
 
 #undef _numberOfElements
 #undef _threads
@@ -553,19 +516,6 @@ void hashTableExperiments() {
 // Memory footprint test cases
 //////////////////////////////
 
-#define HEAP_MARK()                                                            \
-    size_t marked_heap_trace_allocated_bytes   = heap_trace_allocated_bytes;   \
-    size_t marked_heap_trace_deallocated_bytes = heap_trace_deallocated_bytes  \
-
-#define HEAP_DEBUG(_taskName, _outputFunction) {                                                      \
-    size_t allocations   = heap_trace_allocated_bytes   - marked_heap_trace_allocated_bytes;          \
-    size_t deallocations = heap_trace_deallocated_bytes - marked_heap_trace_deallocated_bytes;        \
-    _outputFunction(string(_taskName) + " allocation costs:\n" +                                      \
-                    "      allocations: " + to_string(allocations)                 + " bytes\n" +     \
-                    "    deallocations: " + to_string(deallocations)               + " bytes\n" +     \
-                    "         retained: " + to_string(allocations - deallocations) + " bytes\n\n");   \
-}                                                                                                     \
-
 #define DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(_className, _mapType, _vectorType, _keyType, _outputFunction, _mapInitExptr)  \
     class _className: public AlgorithmComplexityAndReentrancyAnalysis {                                                          \
     public:                                                                                                                      \
@@ -574,11 +524,11 @@ void hashTableExperiments() {
         std::mutex                          writeGuard;                                                                          \
         std::mutex*                         readGuard;                                                                           \
                                                                                                                                  \
-        _className(_vectorType<_keyType>& keys)                                                                                         \
+        _className(_vectorType<_keyType>& keys)                                                                                  \
                 : AlgorithmComplexityAndReentrancyAnalysis(#_className, _numberOfElements, _numberOfElements, _numberOfElements) \
                 , keys(keys)                                                                                                     \
                 , readGuard(nullptr) {                                                                                           \
-            map  = _mapType<_keyType, int>(_mapInitExptr);                                                                   \
+            map  = _mapType<_keyType, int>(_mapInitExptr);                                                                       \
         }                                                                                                                        \
                                                                                                                                  \
         void resetTables(EResetOccasion occasion) override {                                                                     \
@@ -626,8 +576,8 @@ void hashTableExperiments() {
 struct MemoryFootprintExperimentsObjects {
 
     // test case constants
-    static constexpr int _numberOfElements = 4'096'000;
-    static constexpr int _threads          = 4;
+    static constexpr unsigned int _numberOfElements = 4'096'000;
+    static constexpr unsigned int _threads          = 4;
 
     // test case instances
     DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(StandardMapStringIndexExperiments,          std::map,             std::vector, std::string,     MemoryFootprintExperimentsObjects::output, /* empty param */);
@@ -707,7 +657,7 @@ struct MemoryFootprintExperimentsObjects {
             }                                                                                     \
         }                                                                                         \
         output("\n\n");                                                                           \
-        HEAP_DEBUG(#_keyStringType " " + to_string(_numberOfElements) + " Random keys", output);  \
+        HEAP_TRACE(#_keyStringType " " + to_string(_numberOfElements) + " Random keys", output);  \
 
     void assureStdStringKeys() {
         if (stdStringKeys) return;
@@ -749,7 +699,7 @@ BOOST_AUTO_TEST_CASE(_testName) {                                               
             output(".");                                                                             \
         }                                                                                            \
     }                                                                                                \
-    HEAP_DEBUG(#_testName, output);                                                                  \
+    HEAP_TRACE(#_testName, output);                                                                  \
     delete _mapContainer;                                                                            \
     _mapContainer = nullptr;                                                                         \
 }                                                                                                    \
@@ -768,7 +718,7 @@ BOOST_AUTO_TEST_CASE(_testName) {                                               
 			output(".");                                                                             \
 		}                                                                                            \
 	}                                                                                                \
-	HEAP_DEBUG(#_testName, output);                                                                  \
+	HEAP_TRACE(#_testName, output);                                                                  \
 	delete _mapContainer;                                                                            \
 	_mapContainer = nullptr;                                                                         \
 }                                                                                                    \
@@ -853,7 +803,7 @@ void memoryFootprintExperiments() {
         }
     };
     {
-        setHeapTraceBaseline();
+//        setHeapTraceBaseline();
         cout << "Generating std::string keys... " << flush;
         std::vector<string> keys = std::vector<string>(_numberOfElements);
         std::string         str("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
@@ -868,15 +818,15 @@ void memoryFootprintExperiments() {
             }
         }
         cout << endl << endl << flush;
-        getHeapTraceInfo("std::string Random keys allocation costs");
+//        getHeapTraceInfo("std::string Random keys allocation costs");
 
-        setHeapTraceBaseline();
+//        setHeapTraceBaseline();
         SkaByteLLMapStringIndexExperiments skaByteLLMapStringIndexExperiments = SkaByteLLMapStringIndexExperiments(keys);
         // reentrancy tests
         for (int i=11; i<=10; i++) {
             if (i%10 == 0) {
                 skaByteLLMapStringIndexExperiments.testReentrancy(_numberOfElements, true);
-                getHeapTraceInfo("SkaByteLLMapStringIndexExperiments total allocation costs");
+//                getHeapTraceInfo("SkaByteLLMapStringIndexExperiments total allocation costs");
             } else {
                 skaByteLLMapStringIndexExperiments.testReentrancy(_numberOfElements, false);
                 cout << "." << flush;
@@ -892,7 +842,7 @@ void memoryFootprintExperiments() {
             }
         }
     }
-    getHeapTraceInfo("SkaByteLLMapStringIndexExperiments total allocation costs");
+//    getHeapTraceInfo("SkaByteLLMapStringIndexExperiments total allocation costs");
 
     class EastlUnorderedMapStringIndexExperiments: public AlgorithmComplexityAndReentrancyAnalysis {
     public:
@@ -948,7 +898,7 @@ void memoryFootprintExperiments() {
         }
     };
     {
-        setHeapTraceBaseline();
+//        setHeapTraceBaseline();
         cout << "Generating eastl::string keys... " << flush;
         eastl::vector<eastl::string> keys = eastl::vector<eastl::string>(_numberOfElements);
         eastl::string                str("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
@@ -963,15 +913,15 @@ void memoryFootprintExperiments() {
             }
         }
         cout << endl << endl << flush;
-        getHeapTraceInfo("eastl::string Random keys allocation costs");
+//        getHeapTraceInfo("eastl::string Random keys allocation costs");
 
-        setHeapTraceBaseline();
+//        setHeapTraceBaseline();
     	EastlUnorderedMapStringIndexExperiments eastlUnorderedMapStringIndexExperiments = EastlUnorderedMapStringIndexExperiments(keys);
         // reentrancy tests
         for (int i=11; i<=10; i++) {
             if (i%10 == 0) {
             	eastlUnorderedMapStringIndexExperiments.testReentrancy(_numberOfElements, true);
-                getHeapTraceInfo("EastlUnorderedMapStringIndexExperiments total allocation costs");
+//                getHeapTraceInfo("EastlUnorderedMapStringIndexExperiments total allocation costs");
             } else {
             	eastlUnorderedMapStringIndexExperiments.testReentrancy(_numberOfElements, false);
                 cout << "." << flush;
@@ -987,7 +937,7 @@ void memoryFootprintExperiments() {
             }
         }
     }
-    getHeapTraceInfo("EastlUnorderedMapStringIndexExperiments total allocation costs");
+//    getHeapTraceInfo("EastlUnorderedMapStringIndexExperiments total allocation costs");
 
 #undef _numberOfElements
 #undef _threads
@@ -1019,12 +969,12 @@ int _main() {
     } catch (const std::exception& e) {
         DUMP_EXCEPTION(e, "Error while running hashTableExperiments()");
     }
-    heap_trace_allocated_bytes_baseline   = 0;
-    heap_trace_deallocated_bytes_baseline = 0;
-    getHeapTraceInfo("memoryFootprintExperiments allocation totals");
+//    heap_trace_allocated_bytes_baseline   = 0;
+//    heap_trace_deallocated_bytes_baseline = 0;
+//    getHeapTraceInfo("memoryFootprintExperiments allocation totals");
 
-    heap_trace_allocated_bytes_baseline   = 0;
-    heap_trace_deallocated_bytes_baseline = 0;
-    getHeapTraceInfo("Program allocation totals");
+//    heap_trace_allocated_bytes_baseline   = 0;
+//    heap_trace_deallocated_bytes_baseline = 0;
+//    getHeapTraceInfo("Program allocation totals");
     return EXIT_SUCCESS;
 }

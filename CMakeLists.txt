@@ -55,9 +55,12 @@ set(EASTL_LIBRARY debug ${EASTL_ROOT_DIR}/build/Debug/EASTL.lib optimized ${EAST
 add_custom_target(NatVis SOURCES ${EASTL_ROOT_DIR}/doc/EASTL.natvis)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${EASTL_LIBRARY})
 
+
 # libboost unit test framework
 ##############################
-add_library          (boost_unit_test_framework STATIC     IMPORTED)
+add_library          (boost_unit_test_framework STATIC     IMPORTED GLOBAL)
 set_target_properties(boost_unit_test_framework PROPERTIES IMPORTED_LOCATION /usr/lib/libboost_unit_test_framework.a)
 target_link_libraries(${PROJECT_NAME}                      PRIVATE boost_unit_test_framework)
+
+
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
