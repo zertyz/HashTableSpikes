@@ -31,6 +31,6 @@
 [submodule "cpp/sparsepp"]
 	path = cpp/sparsepp
 	url = https://github.com/greg7mdp/sparsepp.git
-[submodule "cpp/git"]
+[submodule "cpp/cmph"]
 	path = cpp/cmph
 	url = https://git.code.sf.net/p/cmph/git
