@@ -29,7 +29,7 @@ using namespace mutua::testutils;
 #include <EASTL/string.h>
 
 // phf (perfect hash function)
-#include "phf/PHFMap.h"
+#include "phf/PerfectMap.h"
 
 
 #define BOOST_TEST_DYN_LINK
@@ -519,7 +519,7 @@ void hashTableExperiments() {
 // Memory footprint test cases
 //////////////////////////////
 
-#define DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(_className, _mapType, _vectorType, _keyType, _outputFunction, _mapInitExptr)  \
+#define DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(_className, _mapType, _vectorType, _keyType, _outputFunction, _mapInitExpr)  \
     class _className: public AlgorithmComplexityAndReentrancyAnalysis {                                                          \
     public:                                                                                                                      \
 		_vectorType<_keyType>&              keys;                                                                                \
@@ -531,7 +531,7 @@ void hashTableExperiments() {
                 : AlgorithmComplexityAndReentrancyAnalysis(#_className, _numberOfElements, _numberOfElements, _numberOfElements) \
                 , keys(keys)                                                                                                     \
                 , readGuard(nullptr) {                                                                                           \
-            map  = _mapType<_keyType, int>(_mapInitExptr);                                                                       \
+            map  = _mapType<_keyType, int>(_mapInitExpr);                                                                       \
         }                                                                                                                        \
                                                                                                                                  \
         void resetTables(EResetOccasion occasion) override {                                                                     \
@@ -576,23 +576,69 @@ void hashTableExperiments() {
         }                                                                                                                        \
     }                                                                                                                            \
 
+#define DECLARE_PERFECT_HASH_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(_className, _mapType, _vectorType, _keyType, _outputFunction, _seed)  \
+    class _className: public AlgorithmComplexityAndReentrancyAnalysis {                                                          \
+    public:                                                                                                                      \
+		_vectorType<_keyType>&              keys;                                                                                \
+        _mapType<_keyType, int>             map;                                                                                 \
+                                                                                                                                 \
+        _className(_vectorType<_keyType>& keys)                                                                                  \
+                : AlgorithmComplexityAndReentrancyAnalysis(#_className, _numberOfElements, _numberOfElements, _numberOfElements) \
+                , keys(keys) {                                                                                                   \
+            map  = _mapType<_keyType, int>(keys.begin(), keys.size(), _seed);                                                    \
+        }                                                                                                                        \
+                                                                                                                                 \
+        void resetTables(EResetOccasion occasion) override {                                                                     \
+            map.clear();                                                                                                         \
+        }                                                                                                                        \
+                                                                                                                                 \
+        /* algorithms under analysis & test */                                                                                   \
+        /* //////////////////////////////// */                                                                                   \
+                                                                                                                                 \
+        void insertAlgorithm(unsigned int i) override {                                                                          \
+            map[keys[i]] = ((int)i);                                                                                             \
+        }                                                                                                                        \
+                                                                                                                                 \
+        void selectAlgorithm(unsigned int i) override {                                                                          \
+            if (map[keys[i]] != ((int)i)) {                                                                                      \
+            	_outputFunction("Select: item #" + to_string(i) + ", on the insert phase, should be " + to_string((int)i) +      \
+            	                " but is " + to_string(map[keys[i]]) + "\n");                                                    \
+            }                                                                                                                    \
+        }                                                                                                                        \
+                                                                                                                                 \
+        void updateAlgorithm(unsigned int i) override {                                                                          \
+            map[keys[i]] = -((int)i);                                                                                            \
+        }                                                                                                                        \
+                                                                                                                                 \
+        void deleteAlgorithm(unsigned int i) override {                                                                          \
+            int value = map[keys[i]];                                                                                            \
+            map.erase(keys[i]);                                                                                                  \
+            if (value != -((int)i)) {                                                                                            \
+                _outputFunction("Delete: item #" + to_string(i) + ", on the update phase, should be " + to_string(-((int)i)) +   \
+                                " but was " + to_string(value) + "\n");                                                          \
+            }                                                                                                                    \
+        }                                                                                                                        \
+    }                                                                                                                            \
+
 struct MemoryFootprintExperimentsObjects {
 
     // test case constants
     static constexpr unsigned int _numberOfElements = 4'096'000;
     static constexpr unsigned int _threads          = 4;
 
-    // test case instances
-    DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(StandardMapStringIndexExperiments,          std::map,             std::vector,   std::string,   MemoryFootprintExperimentsObjects::output, /* empty param */);
+    // hash map test case instances
+    DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(StandardMapStringIndexExperiments,          std::map,             std::vector,   std::string,   MemoryFootprintExperimentsObjects::output, /* empty param */);
     static StandardMapStringIndexExperiments*          standardMapStringIndexExperiments;
-    DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(StandardUnorderedMapStringIndexExperiments, std::unordered_map,   std::vector,   std::string,   MemoryFootprintExperimentsObjects::output, _numberOfElements);
+    DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(StandardUnorderedMapStringIndexExperiments, std::unordered_map,   std::vector,   std::string,   MemoryFootprintExperimentsObjects::output, _numberOfElements);
     static StandardUnorderedMapStringIndexExperiments* standardUnorderedMapStringIndexExperiments;
-    DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(SkaByteLLMapStringIndexExperiments,         ska::bytell_hash_map, std::vector,   std::string,   MemoryFootprintExperimentsObjects::output, _numberOfElements);
+    DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(SkaByteLLMapStringIndexExperiments,         ska::bytell_hash_map, std::vector,   std::string,   MemoryFootprintExperimentsObjects::output, _numberOfElements);
     static SkaByteLLMapStringIndexExperiments*         skaByteLLMapStringIndexExperiments;
-    DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(EastlUnorderedMapStringIndexExperiments,    eastl::unordered_map, eastl::vector, eastl::string, MemoryFootprintExperimentsObjects::output, _numberOfElements);
+    DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(EastlUnorderedMapStringIndexExperiments,    eastl::unordered_map, eastl::vector, eastl::string, MemoryFootprintExperimentsObjects::output, _numberOfElements);
     static EastlUnorderedMapStringIndexExperiments*    eastlUnorderedMapStringIndexExperiments;
-    DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(PerfectHashFunctionStringIndexExperiments,  PHF::PerfectMap,      eastl::vector, eastl::string, MemoryFootprintExperimentsObjects::output, _numberOfElements);
-    static PerfectHashFunctionIndexExperiments*        perfectHashFunctionStringIndexExperiments;
+
+    // perfect hash map test case instances
+    DECLARE_PERFECT_HASH_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(PerfectHashFunctionStringIndexExperiments,  PHF::PerfectMap, std::vector, std::string, MemoryFootprintExperimentsObjects::output, 1234 /*seed*/);
+    static PerfectHashFunctionStringIndexExperiments*  perfectHashFunctionStringIndexExperiments;
 
     // test case data
     static   std::vector  <std::string>* stdStringKeys;		// keys for all by EASTL containers
@@ -614,6 +660,8 @@ struct MemoryFootprintExperimentsObjects {
     ~MemoryFootprintExperimentsObjects() {
     	BOOST_TEST_MESSAGE("\n" + testOutput);
     	testOutput = "";
+    	if (stdStringKeys)   delete stdStringKeys;   stdStringKeys   = nullptr;
+    	if (eastlStringKeys) delete eastlStringKeys; eastlStringKeys = nullptr;
     }
 
     static void output(string msg, bool toCerr) {
@@ -646,6 +694,13 @@ struct MemoryFootprintExperimentsObjects {
         eastlUnorderedMapStringIndexExperiments = new EastlUnorderedMapStringIndexExperiments(*eastlStringKeys);
     }
 
+    void assurePerfectHashFunctionStringIndexExperiments() {
+    	BOOST_ASSERT_MSG(!perfectHashFunctionStringIndexExperiments, "tests must never leave leftovers -- containers must be deleted and set to 'nullptr' after use");
+        if (perfectHashFunctionStringIndexExperiments) return;
+        assureStdStringKeys();
+        perfectHashFunctionStringIndexExperiments = new PerfectHashFunctionStringIndexExperiments(*stdStringKeys);
+    }
+
 #define GENERATE_KEYS(_keyStringType, _keysContainer, _vectorType)                                \
         HEAP_MARK();                                                                              \
         output("Generating " #_keyStringType " keys... ");                                        \
@@ -666,12 +721,20 @@ struct MemoryFootprintExperimentsObjects {
 
     void assureStdStringKeys() {
         if (stdStringKeys) return;
-        if (eastlStringKeys) output("Deleting no longer needed 'eastlStringKeys'.\n"); delete eastlStringKeys;	// free unneeded memory
+        if (eastlStringKeys) {
+        	output("Deleting no longer needed 'eastlStringKeys'.\n");
+        	delete eastlStringKeys;
+        	eastlStringKeys = nullptr;
+        }
         GENERATE_KEYS(std::string, stdStringKeys, std::vector);
     }
     void assureEastlStringKeys() {
     	if (eastlStringKeys) return;
-        if (stdStringKeys) output("Deleting no longer needed 'stdStringKeys'.\n"); delete stdStringKeys;		// free unneeded memory
+        if (stdStringKeys) {
+        	output("Deleting no longer needed 'stdStringKeys'.\n");
+        	delete stdStringKeys;
+        	stdStringKeys = nullptr;
+        }
         GENERATE_KEYS(eastl::string, eastlStringKeys, eastl::vector);
     }
 
@@ -685,7 +748,7 @@ MemoryFootprintExperimentsObjects::StandardUnorderedMapStringIndexExperiments* M
 MemoryFootprintExperimentsObjects::SkaByteLLMapStringIndexExperiments*         MemoryFootprintExperimentsObjects::skaByteLLMapStringIndexExperiments         = nullptr;
 MemoryFootprintExperimentsObjects::EastlUnorderedMapStringIndexExperiments*    MemoryFootprintExperimentsObjects::eastlUnorderedMapStringIndexExperiments    = nullptr;
 string                                                                         MemoryFootprintExperimentsObjects::testOutput                                 = "";
-#undef DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS
+#undef DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS
 
 
 //BOOST_TEST_GLOBAL_FIXTURE(MemoryFootprintExperimentsObjects);
