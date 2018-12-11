@@ -12,7 +12,7 @@ set(CMAKE_CXX_FLAGS    "${CMAKE_CXX_FLAGS} -march=native -mcpu=native -mtune=nat
 
 
 #file(GLOB_RECURSE SOURCE_FILES  cpp/*.h cpp/*.cpp)
-set(SOURCE_FILES cpp/HashTableSpikes.cpp)
+set(SOURCE_FILES cpp/phf/phf.cc cpp/HashTableSpikes.cpp)
 message("Building executable './${CMAKE_BUILD_TYPE}/${PROJECT_NAME}' with: ${SOURCE_FILES}")
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 

@@ -34,3 +34,6 @@
 [submodule "cpp/cmph"]
 	path = cpp/cmph
 	url = https://git.code.sf.net/p/cmph/git
+[submodule "cpp/phf"]
+	path = cpp/phf
+	url = https://github.com/zertyz/phf.git

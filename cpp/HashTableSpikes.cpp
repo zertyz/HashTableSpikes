@@ -28,6 +28,9 @@ using namespace mutua::testutils;
 #include <EASTL/vector.h>
 #include <EASTL/string.h>
 
+// phf (perfect hash function)
+#include "phf/PHFMap.h"
+
 
 #define BOOST_TEST_DYN_LINK
 #define BOOST_TEST_MODULE HashTableSpikes
@@ -580,14 +583,16 @@ struct MemoryFootprintExperimentsObjects {
     static constexpr unsigned int _threads          = 4;
 
     // test case instances
-    DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(StandardMapStringIndexExperiments,          std::map,             std::vector, std::string,     MemoryFootprintExperimentsObjects::output, /* empty param */);
+    DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(StandardMapStringIndexExperiments,          std::map,             std::vector,   std::string,   MemoryFootprintExperimentsObjects::output, /* empty param */);
     static StandardMapStringIndexExperiments*          standardMapStringIndexExperiments;
-    DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(StandardUnorderedMapStringIndexExperiments, std::unordered_map,   std::vector, std::string,     MemoryFootprintExperimentsObjects::output, _numberOfElements);
+    DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(StandardUnorderedMapStringIndexExperiments, std::unordered_map,   std::vector,   std::string,   MemoryFootprintExperimentsObjects::output, _numberOfElements);
     static StandardUnorderedMapStringIndexExperiments* standardUnorderedMapStringIndexExperiments;
-    DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(SkaByteLLMapStringIndexExperiments,         ska::bytell_hash_map, std::vector, std::string,     MemoryFootprintExperimentsObjects::output, _numberOfElements);
+    DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(SkaByteLLMapStringIndexExperiments,         ska::bytell_hash_map, std::vector,   std::string,   MemoryFootprintExperimentsObjects::output, _numberOfElements);
     static SkaByteLLMapStringIndexExperiments*         skaByteLLMapStringIndexExperiments;
     DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(EastlUnorderedMapStringIndexExperiments,    eastl::unordered_map, eastl::vector, eastl::string, MemoryFootprintExperimentsObjects::output, _numberOfElements);
     static EastlUnorderedMapStringIndexExperiments*    eastlUnorderedMapStringIndexExperiments;
+    DECLARE_HASHCONTAINER_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(PerfectHashFunctionStringIndexExperiments,  PHF::PerfectMap,      eastl::vector, eastl::string, MemoryFootprintExperimentsObjects::output, _numberOfElements);
+    static PerfectHashFunctionIndexExperiments*        perfectHashFunctionStringIndexExperiments;
 
     // test case data
     static   std::vector  <std::string>* stdStringKeys;		// keys for all by EASTL containers
