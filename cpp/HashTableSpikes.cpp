@@ -28,8 +28,8 @@ using namespace mutua::testutils;
 #include <EASTL/vector.h>
 #include <EASTL/string.h>
 
-// phf (perfect hash function)
-#include "phf/PerfectMap.h"
+// BBHash (BB's minimum perfect hash function)
+#include "BBHash/MinimumPerfectMap.h"
 
 
 #define BOOST_TEST_DYN_LINK
@@ -584,9 +584,8 @@ void hashTableExperiments() {
                                                                                                                                  \
         _className(_vectorType<_keyType>& keys)                                                                                  \
                 : AlgorithmComplexityAndReentrancyAnalysis(#_className, _numberOfElements, _numberOfElements, _numberOfElements) \
-                , keys(keys) {                                                                                                   \
-            map  = _mapType<_keyType, int>(keys.begin(), keys.size(), _seed);                                                    \
-        }                                                                                                                        \
+                , keys(keys)                                                                                                     \
+                , map(_mapType<_keyType, int>(&keys[0], keys.size(), _seed)) {}                                              \
                                                                                                                                  \
         void resetTables(EResetOccasion occasion) override {                                                                     \
             map.clear();                                                                                                         \
@@ -637,7 +636,7 @@ struct MemoryFootprintExperimentsObjects {
     static EastlUnorderedMapStringIndexExperiments*    eastlUnorderedMapStringIndexExperiments;
 
     // perfect hash map test case instances
-    DECLARE_PERFECT_HASH_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(PerfectHashFunctionStringIndexExperiments,  PHF::PerfectMap, std::vector, std::string, MemoryFootprintExperimentsObjects::output, 1234 /*seed*/);
+    DECLARE_PERFECT_HASH_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(PerfectHashFunctionStringIndexExperiments,  BBHash::MinimumPerfectMap, std::vector, std::string, MemoryFootprintExperimentsObjects::output, _threads);
     static PerfectHashFunctionStringIndexExperiments*  perfectHashFunctionStringIndexExperiments;
 
     // test case data
@@ -660,8 +659,9 @@ struct MemoryFootprintExperimentsObjects {
     ~MemoryFootprintExperimentsObjects() {
     	BOOST_TEST_MESSAGE("\n" + testOutput);
     	testOutput = "";
-    	if (stdStringKeys)   delete stdStringKeys;   stdStringKeys   = nullptr;
-    	if (eastlStringKeys) delete eastlStringKeys; eastlStringKeys = nullptr;
+        // the following lines are commented because we don't want our keys to be deleted between test cases
+//    	if (stdStringKeys)   delete stdStringKeys;   stdStringKeys   = nullptr;
+//    	if (eastlStringKeys) delete eastlStringKeys; eastlStringKeys = nullptr;
     }
 
     static void output(string msg, bool toCerr) {
@@ -747,6 +747,7 @@ MemoryFootprintExperimentsObjects::StandardMapStringIndexExperiments*          M
 MemoryFootprintExperimentsObjects::StandardUnorderedMapStringIndexExperiments* MemoryFootprintExperimentsObjects::standardUnorderedMapStringIndexExperiments = nullptr;
 MemoryFootprintExperimentsObjects::SkaByteLLMapStringIndexExperiments*         MemoryFootprintExperimentsObjects::skaByteLLMapStringIndexExperiments         = nullptr;
 MemoryFootprintExperimentsObjects::EastlUnorderedMapStringIndexExperiments*    MemoryFootprintExperimentsObjects::eastlUnorderedMapStringIndexExperiments    = nullptr;
+MemoryFootprintExperimentsObjects::PerfectHashFunctionStringIndexExperiments*  MemoryFootprintExperimentsObjects::perfectHashFunctionStringIndexExperiments  = nullptr;
 string                                                                         MemoryFootprintExperimentsObjects::testOutput                                 = "";
 #undef DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS
 
@@ -791,7 +792,7 @@ BOOST_AUTO_TEST_CASE(_testName) {                                               
 	_mapContainer = nullptr;                                                                         \
 }                                                                                                    \
 
-DECLARE_REENTRANCY_TEST         (StandardMapStringIndexReentrancyTests,    assureStandardMapStringIndexExperiments, standardMapStringIndexExperiments);
+/*DECLARE_REENTRANCY_TEST         (StandardMapStringIndexReentrancyTests,    assureStandardMapStringIndexExperiments, standardMapStringIndexExperiments);
 DECLARE_COMPLEXITY_ANALYSIS_TEST(StandardMapStringIndexComplexityAnalysis, assureStandardMapStringIndexExperiments, standardMapStringIndexExperiments);
 
 DECLARE_REENTRANCY_TEST         (StandardUnorderedMapStringIndexReentrancyTests,    assureStandardUnorderedMapStringIndexExperiments, standardUnorderedMapStringIndexExperiments);
@@ -799,6 +800,9 @@ DECLARE_COMPLEXITY_ANALYSIS_TEST(StandardUnorderedMapStringIndexComplexityAnalys
 
 DECLARE_REENTRANCY_TEST         (SkaByteLLMapStringIndexReentrancyTests,    assureSkaByteLLMapStringIndexExperiments, skaByteLLMapStringIndexExperiments);
 DECLARE_COMPLEXITY_ANALYSIS_TEST(SkaByteLLMapStringIndexComplexityAnalysis, assureSkaByteLLMapStringIndexExperiments, skaByteLLMapStringIndexExperiments);
+*/
+DECLARE_REENTRANCY_TEST         (PerfectHashFunctionStringIndexReentrancyTests,    assurePerfectHashFunctionStringIndexExperiments, perfectHashFunctionStringIndexExperiments);
+DECLARE_COMPLEXITY_ANALYSIS_TEST(PerfectHashFunctionStringIndexComplexityAnalysis, assurePerfectHashFunctionStringIndexExperiments, perfectHashFunctionStringIndexExperiments);
 
 DECLARE_REENTRANCY_TEST         (EastlUnorderedMapStringIndexReentrancyTests,    assureEastlUnorderedMapStringIndexExperiments, eastlUnorderedMapStringIndexExperiments);
 DECLARE_COMPLEXITY_ANALYSIS_TEST(EastlUnorderedMapStringIndexComplexityAnalysis, assureEastlUnorderedMapStringIndexExperiments, eastlUnorderedMapStringIndexExperiments);
