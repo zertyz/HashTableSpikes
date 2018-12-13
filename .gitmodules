@@ -37,3 +37,9 @@
 [submodule "cpp/phf"]
 	path = cpp/phf
 	url = https://github.com/zertyz/phf.git
+[submodule "cpp/BBHash"]
+	path = cpp/BBHash
+	url = https://github.com/zertyz/BBHash.git
+[submodule "cpp/frozen"]
+	path = cpp/frozen
+	url = https://github.com/zertyz/frozen.git
