@@ -55,6 +55,11 @@ set(EASTL_LIBRARY debug ${EASTL_ROOT_DIR}/build/Debug/EASTL.lib optimized ${EAST
 add_custom_target(NatVis SOURCES ${EASTL_ROOT_DIR}/doc/EASTL.natvis)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${EASTL_LIBRARY})
 
+# Frozen library
+################
+include_directories(cpp/frozen/include/)
+
+
 
 # libboost unit test framework
 ##############################

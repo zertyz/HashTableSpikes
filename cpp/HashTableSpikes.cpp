@@ -13,6 +13,7 @@
 #include <MutuaTestMacros.h>
 #include <BetterExceptions.h>
 #include <TimeMeasurements.h>
+#include <ConstExprUtils.h>
 using namespace mutua::cpputils;
 
 #include <AlgorithmComplexityAndReentrancyAnalysis.h>
@@ -30,6 +31,10 @@ using namespace mutua::testutils;
 
 // BBHash (BB's minimum perfect hash function)
 #include "BBHash/MinimumPerfectMap.h"
+
+// frozen (constexpr perfect hash maps)
+#include <frozen/string.h>
+#include <frozen/unordered_map.h>
 
 
 #define BOOST_TEST_DYN_LINK
@@ -812,6 +817,230 @@ DECLARE_COMPLEXITY_ANALYSIS_TEST(EastlUnorderedMapStringIndexComplexityAnalysis,
 
 BOOST_AUTO_TEST_SUITE_END();
 
+#include <frozen/bits/basic_types.h>
+template <unsigned _1DArrayLength, unsigned _2DArrayLength>
+static constexpr frozen::unordered_map<frozen::string, unsigned, _1DArrayLength> generateRandomFrozenMapKeysAndValuesArray(const std::array<std::array<char, _2DArrayLength>, _1DArrayLength>& char2DArray) {
+	frozen::unordered_map<frozen::string, unsigned, _1DArrayLength> frozenMap {};
+	unsigned c=0, i=0;
+	for (const std::pair<frozen::string, unsigned> &element : frozenMap) {
+		const std::pair myPair = std::pair(frozen::string(char2DArray[i++].data(), _2DArrayLength-1), c++);
+		std::swap(element, myPair);
+	}
+	return frozenMap;
+}
+
+
+template <unsigned _1DArrayLength, unsigned _2DArrayLength>
+static constexpr frozen::unordered_map<frozen::string, unsigned, _1DArrayLength> generateFrozenMapFromRandomChar2DArray(const std::array<std::array<char, _2DArrayLength>, _1DArrayLength>& char2DArray) {
+	frozen::unordered_map<frozen::string, unsigned, _1DArrayLength> frozenMap {};
+	unsigned c=0, i=0;
+	for (const std::pair<frozen::string, unsigned> &element : frozenMap) {
+		const std::pair myPair = std::pair(frozen::string(char2DArray[i++].data(), _2DArrayLength-1), c++);
+		std::swap(element, myPair);
+	}
+	return frozenMap;
+}
+
+struct perfectHashFunctionExperiments {
+
+    // test case constants
+	//////////////////////
+	// '_numberOfElements' has been tested with the following numbers:
+	//	  64'000 -- the maximum clang can do in a small 512m Raspberry Pi, with a little backing dev zram swap
+	//  1024'000 -- the maximum clang can do without swapping in my 8G laptop
+    static constexpr unsigned int _numberOfElements = 64'000;
+    static constexpr unsigned int _keyLength        = 16;
+    static constexpr unsigned int _threads          = 4;
+    static constexpr std::array<std::array<char, _keyLength>, _numberOfElements> randomChar2DArray = ConstExprUtils::generateRandomChar2DArray<_numberOfElements, _keyLength>('a', 'z');
+
+    // constexpr maps
+    static constexpr frozen::unordered_map<frozen::string, unsigned, _numberOfElements> frozen_map = generateFrozenMapFromRandomChar2DArray<_numberOfElements, _keyLength>(randomChar2DArray);
+
+//    // hash map test case instances
+//    DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(StandardMapStringIndexExperiments,          std::map,             std::vector,   std::string,   MemoryFootprintExperimentsObjects::output, /* empty param */);
+//    static StandardMapStringIndexExperiments*          standardMapStringIndexExperiments;
+//    DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(StandardUnorderedMapStringIndexExperiments, std::unordered_map,   std::vector,   std::string,   MemoryFootprintExperimentsObjects::output, _numberOfElements);
+//    static StandardUnorderedMapStringIndexExperiments* standardUnorderedMapStringIndexExperiments;
+//    DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(SkaByteLLMapStringIndexExperiments,         ska::bytell_hash_map, std::vector,   std::string,   MemoryFootprintExperimentsObjects::output, _numberOfElements);
+//    static SkaByteLLMapStringIndexExperiments*         skaByteLLMapStringIndexExperiments;
+//    DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(EastlUnorderedMapStringIndexExperiments,    eastl::unordered_map, eastl::vector, eastl::string, MemoryFootprintExperimentsObjects::output, _numberOfElements);
+//    static EastlUnorderedMapStringIndexExperiments*    eastlUnorderedMapStringIndexExperiments;
+//
+//    // perfect hash map test case instances
+//    DECLARE_PERFECT_HASH_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(PerfectHashFunctionStringIndexExperiments,  BBHash::MinimumPerfectMap, std::vector, std::string, MemoryFootprintExperimentsObjects::output, _threads);
+//    static PerfectHashFunctionStringIndexExperiments*  perfectHashFunctionStringIndexExperiments;
+
+    // output messages for boost tests
+    static string testOutput;
+
+
+    MemoryFootprintExperimentsObjects() {
+    	static bool firstRun = true;
+    	if (firstRun) {
+			cerr << endl << endl;
+			cerr << "Memory Footprint Experiments:" << endl;
+			cerr << "============================ " << endl << endl;
+			firstRun = false;
+    	}
+    }
+    ~MemoryFootprintExperimentsObjects() {
+    	BOOST_TEST_MESSAGE("\n" + testOutput);
+    	testOutput = "";
+        // the following lines are commented because we don't want our keys to be deleted between test cases
+//    	if (stdStringKeys)   delete stdStringKeys;   stdStringKeys   = nullptr;
+//    	if (eastlStringKeys) delete eastlStringKeys; eastlStringKeys = nullptr;
+    }
+
+    static void output(string msg, bool toCerr) {
+    	if (toCerr) cerr << msg << flush;
+    	testOutput.append(msg);
+    }
+    static void output(string msg) {
+    	output(msg, true);
+    }
+
+    void assureStandardMapStringIndexExperiments() {
+    	BOOST_ASSERT_MSG(!standardMapStringIndexExperiments, "tests must never leave leftovers -- containers must be deleted and set to 'nullptr' after use");
+        assureStdStringKeys();
+        standardMapStringIndexExperiments = new StandardMapStringIndexExperiments(*stdStringKeys);
+    }
+    void assureStandardUnorderedMapStringIndexExperiments() {
+    	BOOST_ASSERT_MSG(!standardUnorderedMapStringIndexExperiments, "tests must never leave leftovers -- containers must be deleted and set to 'nullptr' after use");
+        assureStdStringKeys();
+        standardUnorderedMapStringIndexExperiments = new StandardUnorderedMapStringIndexExperiments(*stdStringKeys);
+    }
+    void assureSkaByteLLMapStringIndexExperiments() {
+    	BOOST_ASSERT_MSG(!skaByteLLMapStringIndexExperiments, "tests must never leave leftovers -- containers must be deleted and set to 'nullptr' after use");
+        if (skaByteLLMapStringIndexExperiments) return;
+        assureStdStringKeys();
+        skaByteLLMapStringIndexExperiments = new SkaByteLLMapStringIndexExperiments(*stdStringKeys);
+    }
+    void assureEastlUnorderedMapStringIndexExperiments() {
+    	BOOST_ASSERT_MSG(!eastlUnorderedMapStringIndexExperiments, "tests must never leave leftovers -- containers must be deleted and set to 'nullptr' after use");
+        assureEastlStringKeys();
+        eastlUnorderedMapStringIndexExperiments = new EastlUnorderedMapStringIndexExperiments(*eastlStringKeys);
+    }
+
+    void assurePerfectHashFunctionStringIndexExperiments() {
+    	BOOST_ASSERT_MSG(!perfectHashFunctionStringIndexExperiments, "tests must never leave leftovers -- containers must be deleted and set to 'nullptr' after use");
+        if (perfectHashFunctionStringIndexExperiments) return;
+        assureStdStringKeys();
+        perfectHashFunctionStringIndexExperiments = new PerfectHashFunctionStringIndexExperiments(*stdStringKeys);
+    }
+
+#define GENERATE_KEYS(_keyStringType, _keysContainer, _vectorType)                                \
+        HEAP_MARK();                                                                              \
+        output("Generating " #_keyStringType " keys... ");                                        \
+        _keysContainer = new _vectorType<_keyStringType>(_numberOfElements);                      \
+        _keyStringType     str("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"); \
+        std::random_device rd;                                                                    \
+        std::mt19937       generator(rd());                                                       \
+        for (int i=0; i<_numberOfElements; i++) {                                                 \
+            std::shuffle(str.begin(), str.end(), generator);                                      \
+            _keyStringType key         = str.substr(0, 16);                                       \
+            (*_keysContainer)[i] = key;                                                           \
+            if (i%102400 == 0) {                                                                  \
+                output(".");                                                                      \
+            }                                                                                     \
+        }                                                                                         \
+        output("\n\n");                                                                           \
+        HEAP_TRACE(#_keyStringType " " + to_string(_numberOfElements) + " Random keys", output);  \
+
+    void assureStdStringKeys() {
+        if (stdStringKeys) return;
+        if (eastlStringKeys) {
+        	output("Deleting no longer needed 'eastlStringKeys'.\n");
+        	delete eastlStringKeys;
+        	eastlStringKeys = nullptr;
+        }
+        GENERATE_KEYS(std::string, stdStringKeys, std::vector);
+    }
+    void assureEastlStringKeys() {
+    	if (eastlStringKeys) return;
+        if (stdStringKeys) {
+        	output("Deleting no longer needed 'stdStringKeys'.\n");
+        	delete stdStringKeys;
+        	stdStringKeys = nullptr;
+        }
+        GENERATE_KEYS(eastl::string, eastlStringKeys, eastl::vector);
+    }
+
+#undef GENERATE_KEYS
+};
+// static initializers
+  std::vector  <std::string>*                                                  MemoryFootprintExperimentsObjects::stdStringKeys                              = nullptr;
+eastl::vector<eastl::string>*                                                  MemoryFootprintExperimentsObjects::eastlStringKeys                            = nullptr;
+MemoryFootprintExperimentsObjects::StandardMapStringIndexExperiments*          MemoryFootprintExperimentsObjects::standardMapStringIndexExperiments          = nullptr;
+MemoryFootprintExperimentsObjects::StandardUnorderedMapStringIndexExperiments* MemoryFootprintExperimentsObjects::standardUnorderedMapStringIndexExperiments = nullptr;
+MemoryFootprintExperimentsObjects::SkaByteLLMapStringIndexExperiments*         MemoryFootprintExperimentsObjects::skaByteLLMapStringIndexExperiments         = nullptr;
+MemoryFootprintExperimentsObjects::EastlUnorderedMapStringIndexExperiments*    MemoryFootprintExperimentsObjects::eastlUnorderedMapStringIndexExperiments    = nullptr;
+MemoryFootprintExperimentsObjects::PerfectHashFunctionStringIndexExperiments*  MemoryFootprintExperimentsObjects::perfectHashFunctionStringIndexExperiments  = nullptr;
+string                                                                         MemoryFootprintExperimentsObjects::testOutput                                 = "";
+#undef DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS
+
+
+//BOOST_TEST_GLOBAL_FIXTURE(MemoryFootprintExperimentsObjects);
+BOOST_FIXTURE_TEST_SUITE(MemoryFootprintExperiments, MemoryFootprintExperimentsObjects);
+
+#define DECLARE_REENTRANCY_TEST(_testName, _assureFunction, _mapContainer)                           \
+BOOST_AUTO_TEST_CASE(_testName) {                                                                    \
+    _assureFunction();                                                                               \
+    HEAP_MARK();                                                                                     \
+    for (int i=10; i<=10; i++) {                                                                     \
+        if (i%10 == 0) {                                                                             \
+            string reentrancyTestOutput = _mapContainer->testReentrancy(_numberOfElements, true);    \
+            output(reentrancyTestOutput, false);                                                     \
+        } else {                                                                                     \
+        	_mapContainer->testReentrancy(_numberOfElements, false);                                 \
+            output(".");                                                                             \
+        }                                                                                            \
+    }                                                                                                \
+    HEAP_TRACE(#_testName, output);                                                                  \
+    delete _mapContainer;                                                                            \
+    _mapContainer = nullptr;                                                                         \
+}                                                                                                    \
+
+#define DECLARE_COMPLEXITY_ANALYSIS_TEST(_testName, _assureFunction, _mapContainer)                  \
+BOOST_AUTO_TEST_CASE(_testName) {                                                                    \
+	_assureFunction();                                                                               \
+	HEAP_MARK();                                                                                     \
+	for (int i=10; i<=10; i++) {                                                                     \
+		if (i%10 == 0) {                                                                             \
+			string complexityAnalysisOutput;                                                         \
+			tie(complexityAnalysisOutput, std::ignore, std::ignore, std::ignore, std::ignore) = _mapContainer->analyseComplexity(false, _threads, _threads, _threads, _threads, true); \
+			output(complexityAnalysisOutput, false);                                                 \
+		} else {                                                                                     \
+			_mapContainer->analyseComplexity(false, _threads, _threads, _threads, _threads, false);  \
+			output(".");                                                                             \
+		}                                                                                            \
+	}                                                                                                \
+	HEAP_TRACE(#_testName, output);                                                                  \
+	delete _mapContainer;                                                                            \
+	_mapContainer = nullptr;                                                                         \
+}                                                                                                    \
+
+/*DECLARE_REENTRANCY_TEST         (StandardMapStringIndexReentrancyTests,    assureStandardMapStringIndexExperiments, standardMapStringIndexExperiments);
+DECLARE_COMPLEXITY_ANALYSIS_TEST(StandardMapStringIndexComplexityAnalysis, assureStandardMapStringIndexExperiments, standardMapStringIndexExperiments);
+
+DECLARE_REENTRANCY_TEST         (StandardUnorderedMapStringIndexReentrancyTests,    assureStandardUnorderedMapStringIndexExperiments, standardUnorderedMapStringIndexExperiments);
+DECLARE_COMPLEXITY_ANALYSIS_TEST(StandardUnorderedMapStringIndexComplexityAnalysis, assureStandardUnorderedMapStringIndexExperiments, standardUnorderedMapStringIndexExperiments);
+
+DECLARE_REENTRANCY_TEST         (SkaByteLLMapStringIndexReentrancyTests,    assureSkaByteLLMapStringIndexExperiments, skaByteLLMapStringIndexExperiments);
+DECLARE_COMPLEXITY_ANALYSIS_TEST(SkaByteLLMapStringIndexComplexityAnalysis, assureSkaByteLLMapStringIndexExperiments, skaByteLLMapStringIndexExperiments);
+*/
+DECLARE_REENTRANCY_TEST         (PerfectHashFunctionStringIndexReentrancyTests,    assurePerfectHashFunctionStringIndexExperiments, perfectHashFunctionStringIndexExperiments);
+DECLARE_COMPLEXITY_ANALYSIS_TEST(PerfectHashFunctionStringIndexComplexityAnalysis, assurePerfectHashFunctionStringIndexExperiments, perfectHashFunctionStringIndexExperiments);
+
+DECLARE_REENTRANCY_TEST         (EastlUnorderedMapStringIndexReentrancyTests,    assureEastlUnorderedMapStringIndexExperiments, eastlUnorderedMapStringIndexExperiments);
+DECLARE_COMPLEXITY_ANALYSIS_TEST(EastlUnorderedMapStringIndexComplexityAnalysis, assureEastlUnorderedMapStringIndexExperiments, eastlUnorderedMapStringIndexExperiments);
+
+#undef DECLARE_REENTRANCY_TEST
+#undef DECLARE_COMPLEXITY_ANALYSIS_TEST
+
+BOOST_AUTO_TEST_SUITE_END();
+
+
+
 void memoryFootprintExperiments() {
 
     cout << endl << endl;
@@ -1036,11 +1265,18 @@ int _main() {
 //    heap_trace_deallocated_bytes_baseline = 0;
 //    getHeapTraceInfo("hashTableExperiments allocation totals");
 
+//    try {
+//        memoryFootprintExperiments();
+//    } catch (const std::exception& e) {
+//        DUMP_EXCEPTION(e, "Error while running hashTableExperiments()");
+//    }
+
     try {
-        memoryFootprintExperiments();
+        perfectHashFunctionExperiments();
     } catch (const std::exception& e) {
-        DUMP_EXCEPTION(e, "Error while running hashTableExperiments()");
+        DUMP_EXCEPTION(e, "Error while running perfectHashFunctionExperiments()");
     }
+
 //    heap_trace_allocated_bytes_baseline   = 0;
 //    heap_trace_deallocated_bytes_baseline = 0;
 //    getHeapTraceInfo("memoryFootprintExperiments allocation totals");
