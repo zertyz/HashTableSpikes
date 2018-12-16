@@ -940,10 +940,30 @@ BOOST_FIXTURE_TEST_SUITE(PerfectHashFunctionExperiments, PerfectHashFunctionExpe
 BOOST_AUTO_TEST_CASE(frozenUnorderedMap) {
     HEAP_MARK();
     output("frozen map keys: " + to_string(frozenMap.size())+"\n\n");
-    frozen::string key = "iqwxaiwgjpyospbe";
+    // existing keys
+    constexpr frozen::string someKeys[] = {
+        "iqwxaiwgjpyospbe", "zofmqiolujblgasf", "pwcyedqhnplqsxze", "yuukljubgmqohtey",
+        "nzjqxonblopckrrv", "dafrtzwbuwubzjww", "ywidwtwynbdgavxk", "cjjghchywyseftkk",
+        "zjbybblwmslelfrs", "swmdhrqhwpvvfxdq", "uoblclahcpojcaip", "ggjdoqibmosfwhwp",
+        "mihzoaavwpwmptyj", "ptdlwhqykcdxamuk", "isgvyxvmogqdmeqx", "ksbmnnqbzrzkskva",
+    };
+    // // non-existing keys
+    // constexpr frozen::string someKeys[] = {
+    //     "aqwxaiwgjpyospbe", "zofmeiolujblgasf", "pwcyedqinplqsxze", "yuukljubgmqmhtey",
+    //     "nbjqxonblopckrrv", "dafrtfwbuwubzjww", "ywidwtwyjbdgavxk", "cjjghchywysnftkk",
+    //     "zjcybblwmslelfrs", "swmdhrghwpvvfxdq", "uoblclahckojcaip", "ggjdoqibmosfohwp",
+    //     "mihdoaavwpwmptyj", "ptdlwhqhkcdxamuk", "isgvyxvmogldmeqx", "ksbmnnqbzrzkspva",
+    // };
+    output("Keys: {");
+    for (unsigned i=0; i<16; i++) {
+        output(string(someKeys[i].data()));
+        output(", ");
+    }
+    output("}\n\n");
     unsigned r = 0;
     for (unsigned i=0; i<1*1024*1024*1024; i++) {
-	    r = r + frozenMap.at(key) & i;
+        //output("<i="+to_string(i)+",r="+to_string(r)+"> ");
+	    r = r + frozenMap.at(someKeys[r % 16]) & i;
     }
     output("Done with result " + to_string(r));
     HEAP_TRACE("frozenUnorderedMap", output);
