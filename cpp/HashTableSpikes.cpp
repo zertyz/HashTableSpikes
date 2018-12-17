@@ -847,13 +847,13 @@ struct olaf {
   constexpr std::size_t operator()(frozen::string value) const {
     std::size_t d = 0;
     for (std::size_t i = 0; i < value.size(); ++i)
-      d = (d << 8) + value.data[i];
+      d = (d << 8) + value[i];
     return d;
   }
   constexpr std::size_t operator()(frozen::string value, std::size_t seed) const {
     std::size_t d = seed;
     for (std::size_t i = 0; i < value.size(); ++i)
-      d = (d * 0x01000193) ^ value.data[i];
+      d = (d * 0x01000193) ^ value[i];
     return d;
   }
 };
