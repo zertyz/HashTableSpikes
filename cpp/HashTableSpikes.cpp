@@ -841,6 +841,24 @@ BOOST_AUTO_TEST_SUITE_END();
 // 	return frozenMap;
 // }
 
+#include "gperf_keys.h"     // defines Perfect_Hash::in_word_set and Perfect_Hash::hash
+
+struct olaf {
+  constexpr std::size_t operator()(frozen::string value) const {
+    std::size_t d = 0;
+    for (std::size_t i = 0; i < value.size(); ++i)
+      d = (d << 8) + value.data[i];
+    return d;
+  }
+  constexpr std::size_t operator()(frozen::string value, std::size_t seed) const {
+    std::size_t d = seed;
+    for (std::size_t i = 0; i < value.size(); ++i)
+      d = (d * 0x01000193) ^ value.data[i];
+    return d;
+  }
+};
+
+
 struct PerfectHashFunctionExperimentsObjects {
 
     // test case constants
@@ -855,7 +873,8 @@ struct PerfectHashFunctionExperimentsObjects {
 
     // constexpr maps
 //    static constexpr frozen::unordered_map<frozen::string, unsigned, _numberOfElements> frozen_map = generateFrozenMapFromRandomChar2DArray<_numberOfElements, _keyLength>(randomChar2DArray);
-#include "frozen_test_data.h"   // defines frozenMap
+//#include "frozen_test_data.h"   // defines frozenMap
+#include "BovespaKeys.h"    // defines b3Keys and b3Map
 
 //    // hash map test case instances
 //    DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(StandardMapStringIndexExperiments,          std::map,             std::vector,   std::string,   MemoryFootprintExperimentsObjects::output, /* empty param */);
@@ -937,34 +956,57 @@ string PerfectHashFunctionExperimentsObjects::testOutput = "";
 
 BOOST_FIXTURE_TEST_SUITE(PerfectHashFunctionExperiments, PerfectHashFunctionExperimentsObjects);
 
+// BOOST_AUTO_TEST_CASE(frozenUnorderedMap) {
+//     HEAP_MARK();
+//     output("frozen map keys: " + to_string(frozenMap.size())+"\n\n");
+//     // existing keys
+//     constexpr frozen::string someKeys[] = {
+//         "iqwxaiwgjpyospbe", "zofmqiolujblgasf", "pwcyedqhnplqsxze", "yuukljubgmqohtey",
+//         "nzjqxonblopckrrv", "dafrtzwbuwubzjww", "ywidwtwynbdgavxk", "cjjghchywyseftkk",
+//         "zjbybblwmslelfrs", "swmdhrqhwpvvfxdq", "uoblclahcpojcaip", "ggjdoqibmosfwhwp",
+//         "mihzoaavwpwmptyj", "ptdlwhqykcdxamuk", "isgvyxvmogqdmeqx", "ksbmnnqbzrzkskva",
+//     };
+//     // // non-existing keys
+//     // constexpr frozen::string someKeys[] = {
+//     //     "aqwxaiwgjpyospbe", "zofmeiolujblgasf", "pwcyedqinplqsxze", "yuukljubgmqmhtey",
+//     //     "nbjqxonblopckrrv", "dafrtfwbuwubzjww", "ywidwtwyjbdgavxk", "cjjghchywysnftkk",
+//     //     "zjcybblwmslelfrs", "swmdhrghwpvvfxdq", "uoblclahckojcaip", "ggjdoqibmosfohwp",
+//     //     "mihdoaavwpwmptyj", "ptdlwhqhkcdxamuk", "isgvyxvmogldmeqx", "ksbmnnqbzrzkspva",
+//     // };
+//     output("Keys: {");
+//     for (unsigned i=0; i<16; i++) {
+//         output(string(someKeys[i].data()));
+//         output(", ");
+//     }
+//     output("}\n\n");
+//     unsigned r = 0;
+//     for (unsigned i=0; i<1*1024*1024*1024; i++) {
+//         //output("<i="+to_string(i)+",r="+to_string(r)+"> ");
+// 	    r = r + frozenMap.at(someKeys[r % 16]) & i;
+//     }
+//     output("Done with result " + to_string(r));
+//     HEAP_TRACE("frozenUnorderedMap", output);
+// }
+
 BOOST_AUTO_TEST_CASE(frozenUnorderedMap) {
     HEAP_MARK();
-    output("frozen map keys: " + to_string(frozenMap.size())+"\n\n");
-    // existing keys
-    constexpr frozen::string someKeys[] = {
-        "iqwxaiwgjpyospbe", "zofmqiolujblgasf", "pwcyedqhnplqsxze", "yuukljubgmqohtey",
-        "nzjqxonblopckrrv", "dafrtzwbuwubzjww", "ywidwtwynbdgavxk", "cjjghchywyseftkk",
-        "zjbybblwmslelfrs", "swmdhrqhwpvvfxdq", "uoblclahcpojcaip", "ggjdoqibmosfwhwp",
-        "mihzoaavwpwmptyj", "ptdlwhqykcdxamuk", "isgvyxvmogqdmeqx", "ksbmnnqbzrzkskva",
-    };
-    // // non-existing keys
-    // constexpr frozen::string someKeys[] = {
-    //     "aqwxaiwgjpyospbe", "zofmeiolujblgasf", "pwcyedqinplqsxze", "yuukljubgmqmhtey",
-    //     "nbjqxonblopckrrv", "dafrtfwbuwubzjww", "ywidwtwyjbdgavxk", "cjjghchywysnftkk",
-    //     "zjcybblwmslelfrs", "swmdhrghwpvvfxdq", "uoblclahckojcaip", "ggjdoqibmosfohwp",
-    //     "mihdoaavwpwmptyj", "ptdlwhqhkcdxamuk", "isgvyxvmogldmeqx", "ksbmnnqbzrzkspva",
-    // };
+    output("frozen map keys: " + to_string(b3Map.size())+"\n\n");
     output("Keys: {");
-    for (unsigned i=0; i<16; i++) {
-        output(string(someKeys[i].data()));
+    for (unsigned i=0; i<697; i++) {
+        output(string(b3Keys[i].data()));
         output(", ");
     }
     output("}\n\n");
     unsigned r = 0;
+    // frozen
     for (unsigned i=0; i<1*1024*1024*1024; i++) {
-        //output("<i="+to_string(i)+",r="+to_string(r)+"> ");
-	    r = r + frozenMap.at(someKeys[r % 16]) & i;
+        r = r + b3Map.at(b3Keys[r % 697]) & i;
     }
+    // gperf -- Perfect_Hash::in_word_set and Perfect_Hash::hash
+    // for (unsigned i=0; i<1*1024*1024*1024; i++) {
+    //     r = r + Perfect_Hash::hash(b3Keys[r % 697].data(), b3Keys[r % 697].size()) & i;
+    // }
+
     output("Done with result " + to_string(r));
     HEAP_TRACE("frozenUnorderedMap", output);
 }
