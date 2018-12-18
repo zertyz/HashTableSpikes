@@ -1008,14 +1008,14 @@ BOOST_AUTO_TEST_CASE(frozenUnorderedMap) {
         r = r + b3Map.at(b3Keys[r % 697]);
     }
 
-    output("Done with result " + to_string(r));
+    output("Done with result " + to_string(r) + "\n");
     HEAP_TRACE("frozenUnorderedMap", output);
 }
 
 BOOST_AUTO_TEST_CASE(gperfUnorderedMap) {
     HEAP_MARK();
     olaf hasher;
-    output("frozen map keys: " + to_string(b3Map.size())+"\n\n");
+    output("gperf map keys: " + to_string(b3Map.size())+"\n\n");
     output("Keys: {");
     for (unsigned i=0; i<697; i++) {
         output(string(b3Keys[i].data()));
@@ -1034,8 +1034,8 @@ BOOST_AUTO_TEST_CASE(gperfUnorderedMap) {
     	 }
      }
 
-    output("Done with result " + to_string(r));
-    HEAP_TRACE("frozenUnorderedMap", output);
+    output("Done with result " + to_string(r) + "\n");
+    HEAP_TRACE("gperfUnorderedMap", output);
 }
 
 BOOST_AUTO_TEST_SUITE_END();
