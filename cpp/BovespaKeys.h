@@ -697,7 +697,8 @@ static constexpr frozen::string b3Keys[697] =
 "WIZS3",
 "XRXB34"};
 
-static constexpr frozen::unordered_map<frozen::string, int, 697, olaf> b3Map={
+//static constexpr frozen::unordered_map<frozen::string, int, 697, olaf> b3Map={
+static constexpr frozen::unordered_map<frozen::string, int, 697> b3Map={
 {"ABTT34", 0}, 
 {"ABBV34", 1}, 
 {"ABCB4", 2}, 

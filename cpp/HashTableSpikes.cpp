@@ -844,16 +844,18 @@ BOOST_AUTO_TEST_SUITE_END();
 #include "gperf_keys.h"     // defines Perfect_Hash::in_word_set and Perfect_Hash::hash
 
 struct olaf {
-  constexpr std::size_t operator()(frozen::string value) const {
-    std::size_t d = 0;
-    for (std::size_t i = 0; i < value.size(); ++i)
-      d = (d << 8) + value[i];
+  constexpr size_t operator()(const frozen::string& value) const {
+	size_t len = value.size();
+	size_t d = len;
+    for (size_t i = 0; i < len; ++i)
+      d = (d << 3) + value[i];
     return d;
   }
-  constexpr std::size_t operator()(frozen::string value, std::size_t seed) const {
-    std::size_t d = seed;
-    for (std::size_t i = 0; i < value.size(); ++i)
-      d = (d * 0x01000193) ^ value[i];
+  constexpr unsigned operator()(const frozen::string& value, const std::size_t seed) const {
+	size_t len = value.size();
+	size_t d = seed+len;
+    for (size_t i = 0; i < len; ++i)
+      d = (d << 3) + value[i];
     return d;
   }
 };
@@ -990,22 +992,47 @@ BOOST_FIXTURE_TEST_SUITE(PerfectHashFunctionExperiments, PerfectHashFunctionExpe
 
 BOOST_AUTO_TEST_CASE(frozenUnorderedMap) {
     HEAP_MARK();
+    olaf hasher;
     output("frozen map keys: " + to_string(b3Map.size())+"\n\n");
     output("Keys: {");
     for (unsigned i=0; i<697; i++) {
         output(string(b3Keys[i].data()));
-        output(", ");
+        output("(");
+        output(to_string(static_cast<std::size_t>(hasher.operator()(b3Keys[i]))));
+        output("), ");
     }
     output("}\n\n");
     unsigned r = 0;
     // frozen
     for (unsigned i=0; i<1*1024*1024*1024; i++) {
-        r = r + b3Map.at(b3Keys[r % 697]) & i;
+        r = r + b3Map.at(b3Keys[r % 697]);
     }
-    // gperf -- Perfect_Hash::in_word_set and Perfect_Hash::hash
-    // for (unsigned i=0; i<1*1024*1024*1024; i++) {
-    //     r = r + Perfect_Hash::hash(b3Keys[r % 697].data(), b3Keys[r % 697].size()) & i;
-    // }
+
+    output("Done with result " + to_string(r));
+    HEAP_TRACE("frozenUnorderedMap", output);
+}
+
+BOOST_AUTO_TEST_CASE(gperfUnorderedMap) {
+    HEAP_MARK();
+    olaf hasher;
+    output("frozen map keys: " + to_string(b3Map.size())+"\n\n");
+    output("Keys: {");
+    for (unsigned i=0; i<697; i++) {
+        output(string(b3Keys[i].data()));
+        output("(");
+        output(to_string(static_cast<std::size_t>(hasher.operator()(b3Keys[i]))));
+        output("), ");
+    }
+    output("}\n\n");
+    unsigned r = 0;
+     //gperf -- Perfect_Hash::in_word_set and Perfect_Hash::hash
+     for (unsigned i=0; i<1*1024*1024*1024; i++) {
+    	 if (Perfect_Hash::in_word_set(b3Keys[r % 697].data(), b3Keys[r % 697].size())) {
+    		 r = r + Perfect_Hash::hash(b3Keys[r % 697].data(), b3Keys[r % 697].size());
+    	 } else {
+    		 output("<not found>");
+    	 }
+     }
 
     output("Done with result " + to_string(r));
     HEAP_TRACE("frozenUnorderedMap", output);
