@@ -11,9 +11,17 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS    "${CMAKE_CXX_FLAGS} -march=native -mcpu=native -mtune=native -fconstexpr-steps=1024000000")	# binary is optimized, but machine dependent
 
 
+# GenerateConstExprData executable
+##################################
+set(SOURCE_FILES cpp/GenerateConstExprData.cpp)
+message("Building auxiliary executable './${CMAKE_BUILD_TYPE}/GenerateConstExprData' with: ${SOURCE_FILES}")
+add_executable(GenerateConstExprData ${SOURCE_FILES})
+
+# HashTableSpikes executable
+############################
 #file(GLOB_RECURSE SOURCE_FILES  cpp/*.h cpp/*.cpp)
 set(SOURCE_FILES cpp/HashTableSpikes.cpp)
-message("Building executable './${CMAKE_BUILD_TYPE}/${PROJECT_NAME}' with: ${SOURCE_FILES}")
+message("Building main executable './${CMAKE_BUILD_TYPE}/${PROJECT_NAME}' with: ${SOURCE_FILES}")
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
 
@@ -24,7 +32,7 @@ add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 # SplitRun dependency
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 
-foreach (_referencedLib AlgorithmComplexityAndReentrancyAnalysis CppUtils SplitRun)
+foreach (_referencedLib AlgorithmComplexityAndReentrancyAnalysis CppUtils SplitRun EventsFramework)
 	set(_referencedLib_SOURCES "../../${_referencedLib}/cpp/")
 	message("    --> searching library '${_referencedLib}' in '~/.cmake/packages/${_referencedLib}' with headers in '${_referencedLib_SOURCES}'")
 	if (NOT TARGET ${_referencedLib})
@@ -58,8 +66,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ${EASTL_LIBRARY})
 # Frozen library
 ################
 include_directories(cpp/frozen/include/)
-
-
 
 # libboost unit test framework
 ##############################
