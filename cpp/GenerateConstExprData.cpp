@@ -101,7 +101,7 @@ public:
 		mutua::events::QueueEventDispatcher generatedRandomKeyEventDispatcher(generatedRandomKeyEvent, 1, 0, true, false, true, false, false);
 
 		// generate producers & wait for them to do their work
-		constexpr unsigned threadsLength = 4;
+		constexpr unsigned threadsLength = numberOfProducers;
 		thread threads[threadsLength];
 		for (unsigned i=0; i<threadsLength; i++) {
 			threads[i] = thread(&UniqueRandomKeyGenerator::produceUniqueKeys, this, _quantity/threadsLength);
