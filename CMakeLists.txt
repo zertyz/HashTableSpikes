@@ -44,7 +44,8 @@ foreach (_referencedLib AlgorithmComplexityAndReentrancyAnalysis CppUtils SplitR
 		message("        (defined by the parent CMakeLists.txt)")
 	endif()
 	include_directories("${_referencedLib_SOURCES}")
-	target_link_libraries(${PROJECT_NAME} PRIVATE mutua::${_referencedLib})
+	target_link_libraries(${PROJECT_NAME}       PRIVATE mutua::${_referencedLib})
+	target_link_libraries(GenerateConstExprData PRIVATE mutua::${_referencedLib})
 endforeach()
 
 
@@ -61,7 +62,8 @@ include_directories(${EASTL_ROOT_DIR}/test/packages/EATest/include)
 include_directories(${EASTL_ROOT_DIR}/test/packages/EAThread/include)
 set(EASTL_LIBRARY debug ${EASTL_ROOT_DIR}/build/Debug/EASTL.lib optimized ${EASTL_ROOT_DIR}/Release/libEASTL.a)
 add_custom_target(NatVis SOURCES ${EASTL_ROOT_DIR}/doc/EASTL.natvis)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${EASTL_LIBRARY})
+target_link_libraries(${PROJECT_NAME}       PRIVATE ${EASTL_LIBRARY})
+target_link_libraries(GenerateConstExprData PRIVATE ${EASTL_LIBRARY})
 
 # Frozen library
 ################
