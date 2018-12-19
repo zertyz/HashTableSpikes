@@ -81,13 +81,12 @@ BOOST_AUTO_TEST_CASE(testCase2) {
 
 BOOST_AUTO_TEST_SUITE_END()
 
-void* operator new[](size_t size, const char* pName, int flags, unsigned     debugFlags, const char* file, int line)
-{
+// EASTL new operators
+//////////////////////
+void* operator new[](size_t size, const char* pName, int flags, unsigned     debugFlags, const char* file, int line) {
     return malloc(size);
 }
-
-void* operator new[](size_t size, size_t alignment, size_t alignmentOffset, const char* pName, int flags, unsigned debugFlags, const char* file, int line)
-{
+void* operator new[](size_t size, size_t alignment, size_t alignmentOffset, const char* pName, int flags, unsigned debugFlags, const char* file, int line) {
     return malloc(size);
 }
 
