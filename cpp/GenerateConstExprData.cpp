@@ -229,11 +229,15 @@ int main() {
 		"\n"
 		"namespace ConstexprRandomUniqueKeys {\n"
 		"\n"
-		"static constexpr std::array<std::string_view, 2'048'000> stdStringKeys = {	// ConstexprRandomUniqueKeys::stdStringKeys",
+		"static constexpr unsigned stdStringKeysLength = 2'048'000;\n"
+		"\n"
+		"static constexpr std::array<std::string_view, stdStringKeysLength> stdStringKeys = {	// ConstexprRandomUniqueKeys::stdStringKeys",
 		[] (ofstream& outfile, unsigned i, const char* key) { outfile << "\"" << key << "\""; },
 		"\n};	// ConstexprRandomUniqueKeys::stdStringKeys \n\n",
 		"\n"
-		"static constexpr std::array<eastl::string_view, 2'048'000> eastlStringKeys = {	// ConstexprRandomUniqueKeys::eastlStringKeys",
+		"static constexpr unsigned eastlStringKeysLength = 2'048'000;\n"
+		"\n"
+		"static constexpr std::array<eastl::string_view, eastlStringKeysLength> eastlStringKeys = {	// ConstexprRandomUniqueKeys::eastlStringKeys",
 		[] (ofstream& outfile, unsigned i, const char* key) { outfile << "\"" << key << "\""; },
 		"\n};	// ConstexprRandomUniqueKeys::eastlStringKeys \n\n"
 		"}	// namespace ConstexprRandomUniqueKeys");
