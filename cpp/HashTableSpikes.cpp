@@ -526,16 +526,16 @@ void hashTableExperiments() {
 #define DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(_className, _mapType, _keyType, _len, _outputFunction, _mapInitExpr)  \
     class _className: public AlgorithmComplexityAndReentrancyAnalysis {                                                          \
     public:                                                                                                                      \
-		std::array<_keyType, _len>&        keys;                                                                                \
+		const std::array<_keyType, _len>&   keys;                                                                                \
         _mapType<_keyType, int>             map;                                                                                 \
         std::mutex                          writeGuard;                                                                          \
         std::mutex*                         readGuard;                                                                           \
                                                                                                                                  \
-        _className(std::array<_keyType, _len>& keys)                                                                                  \
+        _className(const std::array<_keyType, _len>& keys)                                                                       \
                 : AlgorithmComplexityAndReentrancyAnalysis(#_className, _numberOfElements, _numberOfElements, _numberOfElements) \
                 , keys(keys)                                                                                                     \
                 , readGuard(nullptr) {                                                                                           \
-            map  = _mapType<_keyType, int>(_mapInitExpr);                                                                       \
+            map  = _mapType<_keyType, int>(_mapInitExpr);                                                                        \
         }                                                                                                                        \
                                                                                                                                  \
         void resetTables(EResetOccasion occasion) override {                                                                     \
@@ -546,6 +546,7 @@ void hashTableExperiments() {
         /* //////////////////////////////// */                                                                                   \
                                                                                                                                  \
         void insertAlgorithm(unsigned int i) override {                                                                          \
+cerr << "--> inserting map['" << std::string(keys[i].data(), keys[i].data()+keys[i].size()) << "'] = " << i << endl << flush;        	\
             std::lock_guard<std::mutex> lock(writeGuard);                                                                        \
         	readGuard = &writeGuard;                                                                                             \
             map[keys[i]] = ((int)i);                                                                                             \
@@ -583,13 +584,13 @@ void hashTableExperiments() {
 #define DECLARE_PERFECT_HASH_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(_className, _mapType, _keyType, _len, _outputFunction, _seed)  \
     class _className: public AlgorithmComplexityAndReentrancyAnalysis {                                                          \
     public:                                                                                                                      \
-		std::array<_keyType, _len>&        keys;                                                                                \
-        _mapType<_keyType, int>             map;                                                                                 \
+		const std::array<_keyType, _len>& keys;                                                                                  \
+        _mapType<_keyType, int>           map;                                                                                   \
                                                                                                                                  \
-        _className(std::array<_keyType, _len>& keys)                                                                                  \
+        _className(const std::array<_keyType, _len>& keys)                                                                       \
                 : AlgorithmComplexityAndReentrancyAnalysis(#_className, _numberOfElements, _numberOfElements, _numberOfElements) \
                 , keys(keys)                                                                                                     \
-                , map(_mapType<_keyType, int>(&keys[0], keys.size(), _seed)) {}                                              \
+                , map(_mapType<_keyType, int>(&keys[0], _len, _seed)) {}                                                         \
                                                                                                                                  \
         void resetTables(EResetOccasion occasion) override {                                                                     \
             map.clear();                                                                                                         \
