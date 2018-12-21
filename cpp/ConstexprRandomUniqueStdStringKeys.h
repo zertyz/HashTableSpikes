@@ -3,6 +3,6 @@
 #include <string>
 
 struct ConstexprRandomUniqueStdStringKeys {
-	static constexpr unsigned                              keysLength = 4'096'000;
+	static constexpr unsigned                              keysLength = 1'024'000;
 	static const std::array<std::string_view, keysLength>  keys;
 };

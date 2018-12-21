@@ -267,7 +267,7 @@ int main() {
 
 	// ConstexprRandomUniqueStdStringKeys
 	/////////////////////////////////////
-	#define _ConstexprRandomUniqueStdStringKeysLength 	4'096'000
+	#define _ConstexprRandomUniqueStdStringKeysLength 	1'024'000
 	createRandomKeysSourceFiles<_ConstexprRandomUniqueStdStringKeysLength>(
 
 		"ConstexprRandomUniqueStdStringKeys.h",
@@ -299,7 +299,7 @@ int main() {
 
 	// ConstexprRandomUniqueEastlStringKeys
 	///////////////////////////////////////
-	#define _ConstexprRandomUniqueEastlStringKeysLength 	4'096'000
+	#define _ConstexprRandomUniqueEastlStringKeysLength 	1'024'000
 	createRandomKeysSourceFiles<_ConstexprRandomUniqueEastlStringKeysLength>(
 
 		"ConstexprRandomUniqueEastlStringKeys.h",

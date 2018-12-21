@@ -3,6 +3,6 @@
 #include <EASTL/string.h>
 
 struct ConstexprRandomUniqueEastlStringKeys {
-	static constexpr unsigned                                keysLength = 4'096'000;
+	static constexpr unsigned                                keysLength = 1'024'000;
 	static const std::array<eastl::string_view, keysLength>  keys;
 };

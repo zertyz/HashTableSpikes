@@ -1,5 +1,5 @@
 # Build this Spike with:
-#	TYPE="Release"; rm -fr $TYPE; mkdir $TYPE; cd $TYPE; CXX=/usr/bin/clang++ cmake -DCMAKE_BUILD_TYPE=$TYPE ..; cmake --build .; cd ..; ls -l "$TYPE/HashTableSpikes"
+#	TYPE="Release"; rm -fr $TYPE; mkdir $TYPE; cd $TYPE; CXX=/usr/bin/clang++ cmake -G Ninja -DCMAKE_BUILD_TYPE=$TYPE ..; cmake --build .; cd ..; ls -l "$TYPE/HashTableSpikes"
 # and run it with:
 #	Release/HashTableSpikes
 # Please, make sure the dependent libraries (listed bellow) were built with Release target.
