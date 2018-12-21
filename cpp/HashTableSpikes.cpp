@@ -523,19 +523,19 @@ void hashTableExperiments() {
 // Memory footprint test cases
 //////////////////////////////
 
-#define DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(_className, _mapType, _keyType, _len, _outputFunction, _mapInitExpr)  \
+#define DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(_className, _mapType, _vectorType, _keyType, _outputFunction, _mapInitExpr)  \
     class _className: public AlgorithmComplexityAndReentrancyAnalysis {                                                          \
     public:                                                                                                                      \
-		const std::array<_keyType, _len>&   keys;                                                                                \
+		_vectorType<_keyType>&              keys;                                                                                \
         _mapType<_keyType, int>             map;                                                                                 \
         std::mutex                          writeGuard;                                                                          \
         std::mutex*                         readGuard;                                                                           \
                                                                                                                                  \
-        _className(const std::array<_keyType, _len>& keys)                                                                       \
+        _className(_vectorType<_keyType>& keys)                                                                                  \
                 : AlgorithmComplexityAndReentrancyAnalysis(#_className, _numberOfElements, _numberOfElements, _numberOfElements) \
                 , keys(keys)                                                                                                     \
                 , readGuard(nullptr) {                                                                                           \
-            map  = _mapType<_keyType, int>(_mapInitExpr);                                                                        \
+            map  = _mapType<_keyType, int>(_mapInitExpr);                                                                       \
         }                                                                                                                        \
                                                                                                                                  \
         void resetTables(EResetOccasion occasion) override {                                                                     \
@@ -546,7 +546,6 @@ void hashTableExperiments() {
         /* //////////////////////////////// */                                                                                   \
                                                                                                                                  \
         void insertAlgorithm(unsigned int i) override {                                                                          \
-cerr << "--> inserting map['" << std::string(keys[i].data(), keys[i].data()+keys[i].size()) << "'] = " << i << endl << flush;        	\
             std::lock_guard<std::mutex> lock(writeGuard);                                                                        \
         	readGuard = &writeGuard;                                                                                             \
             map[keys[i]] = ((int)i);                                                                                             \
@@ -581,16 +580,16 @@ cerr << "--> inserting map['" << std::string(keys[i].data(), keys[i].data()+keys
         }                                                                                                                        \
     }                                                                                                                            \
 
-#define DECLARE_PERFECT_HASH_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(_className, _mapType, _keyType, _len, _outputFunction, _seed)  \
+#define DECLARE_PERFECT_HASH_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(_className, _mapType, _vectorType, _keyType, _outputFunction, _seed)  \
     class _className: public AlgorithmComplexityAndReentrancyAnalysis {                                                          \
     public:                                                                                                                      \
-		const std::array<_keyType, _len>& keys;                                                                                  \
-        _mapType<_keyType, int>           map;                                                                                   \
+		_vectorType<_keyType>&              keys;                                                                                \
+        _mapType<_keyType, int>             map;                                                                                 \
                                                                                                                                  \
-        _className(const std::array<_keyType, _len>& keys)                                                                       \
+        _className(_vectorType<_keyType>& keys)                                                                                  \
                 : AlgorithmComplexityAndReentrancyAnalysis(#_className, _numberOfElements, _numberOfElements, _numberOfElements) \
                 , keys(keys)                                                                                                     \
-                , map(_mapType<_keyType, int>(&keys[0], _len, _seed)) {}                                                         \
+                , map(_mapType<_keyType, int>(&keys[0], keys.size(), _seed)) {}                                              \
                                                                                                                                  \
         void resetTables(EResetOccasion occasion) override {                                                                     \
             map.clear();                                                                                                         \
@@ -624,35 +623,29 @@ cerr << "--> inserting map['" << std::string(keys[i].data(), keys[i].data()+keys
         }                                                                                                                        \
     }                                                                                                                            \
 
-// from ConstexprRandomUniqueKeys.cpp
-namespace ConstexprRandomUniqueKeys {
-    static constexpr std::array<std::string_view, 2'048'000>   stdStringKeys;
-    static constexpr std::array<eastl::string_view, 2'048'000> eastlStringKeys;
-}
-
 struct MemoryFootprintExperimentsObjects {
 
     // test case constants
-    static constexpr unsigned int _numberOfElements = 2'048'000;
+    static constexpr unsigned int _numberOfElements = 4'096'000;
     static constexpr unsigned int _threads          = 4;
 
     // hash map test case instances
-    DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(StandardMapStringIndexExperiments,          std::map,             std::string_view,    _numberOfElements, MemoryFootprintExperimentsObjects::output, /* empty param */);
+    DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(StandardMapStringIndexExperiments,          std::map,             std::vector,   std::string,   MemoryFootprintExperimentsObjects::output, /* empty param */);
     static StandardMapStringIndexExperiments*          standardMapStringIndexExperiments;
-    DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(StandardUnorderedMapStringIndexExperiments, std::unordered_map,   std::string_view,    _numberOfElements, MemoryFootprintExperimentsObjects::output, _numberOfElements);
+    DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(StandardUnorderedMapStringIndexExperiments, std::unordered_map,   std::vector,   std::string,   MemoryFootprintExperimentsObjects::output, _numberOfElements);
     static StandardUnorderedMapStringIndexExperiments* standardUnorderedMapStringIndexExperiments;
-    DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(SkaByteLLMapStringIndexExperiments,         ska::bytell_hash_map, std::string_view,    _numberOfElements, MemoryFootprintExperimentsObjects::output, _numberOfElements);
+    DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(SkaByteLLMapStringIndexExperiments,         ska::bytell_hash_map, std::vector,   std::string,   MemoryFootprintExperimentsObjects::output, _numberOfElements);
     static SkaByteLLMapStringIndexExperiments*         skaByteLLMapStringIndexExperiments;
-    DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(EastlUnorderedMapStringIndexExperiments,    eastl::unordered_map, eastl::string_view,  _numberOfElements, MemoryFootprintExperimentsObjects::output, _numberOfElements);
+    DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(EastlUnorderedMapStringIndexExperiments,    eastl::unordered_map, eastl::vector, eastl::string, MemoryFootprintExperimentsObjects::output, _numberOfElements);
     static EastlUnorderedMapStringIndexExperiments*    eastlUnorderedMapStringIndexExperiments;
 
     // perfect hash map test case instances
-    DECLARE_PERFECT_HASH_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(PerfectHashFunctionStringIndexExperiments,  BBHash::MinimumPerfectMap, std::string_view, _numberOfElements, MemoryFootprintExperimentsObjects::output, _threads);
+    DECLARE_PERFECT_HASH_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(PerfectHashFunctionStringIndexExperiments,  BBHash::MinimumPerfectMap, std::vector, std::string, MemoryFootprintExperimentsObjects::output, _threads);
     static PerfectHashFunctionStringIndexExperiments*  perfectHashFunctionStringIndexExperiments;
 
     // test case data
-    static const constexpr std::array<  std::string_view, _numberOfElements>&  stdStringKeys    = ConstexprRandomUniqueKeys::stdStringKeys;
-    static const constexpr std::array<eastl::string_view, _numberOfElements>&  eastlStringKeys  = ConstexprRandomUniqueKeys::eastlStringKeys;
+    static   std::vector  <std::string>* stdStringKeys;		// keys for all by EASTL containers
+    static eastl::vector<eastl::string>* eastlStringKeys;
 
     // output messages for boost tests
     static string testOutput;
@@ -685,31 +678,31 @@ struct MemoryFootprintExperimentsObjects {
 
     void assureStandardMapStringIndexExperiments() {
     	BOOST_ASSERT_MSG(!standardMapStringIndexExperiments, "tests must never leave leftovers -- containers must be deleted and set to 'nullptr' after use");
-//        assureStdStringKeys();
-        standardMapStringIndexExperiments = new StandardMapStringIndexExperiments(stdStringKeys);
+        assureStdStringKeys();
+        standardMapStringIndexExperiments = new StandardMapStringIndexExperiments(*stdStringKeys);
     }
     void assureStandardUnorderedMapStringIndexExperiments() {
     	BOOST_ASSERT_MSG(!standardUnorderedMapStringIndexExperiments, "tests must never leave leftovers -- containers must be deleted and set to 'nullptr' after use");
-//        assureStdStringKeys();
-        standardUnorderedMapStringIndexExperiments = new StandardUnorderedMapStringIndexExperiments(stdStringKeys);
+        assureStdStringKeys();
+        standardUnorderedMapStringIndexExperiments = new StandardUnorderedMapStringIndexExperiments(*stdStringKeys);
     }
     void assureSkaByteLLMapStringIndexExperiments() {
     	BOOST_ASSERT_MSG(!skaByteLLMapStringIndexExperiments, "tests must never leave leftovers -- containers must be deleted and set to 'nullptr' after use");
         if (skaByteLLMapStringIndexExperiments) return;
-//        assureStdStringKeys();
-        skaByteLLMapStringIndexExperiments = new SkaByteLLMapStringIndexExperiments(stdStringKeys);
+        assureStdStringKeys();
+        skaByteLLMapStringIndexExperiments = new SkaByteLLMapStringIndexExperiments(*stdStringKeys);
     }
     void assureEastlUnorderedMapStringIndexExperiments() {
     	BOOST_ASSERT_MSG(!eastlUnorderedMapStringIndexExperiments, "tests must never leave leftovers -- containers must be deleted and set to 'nullptr' after use");
-//        assureEastlStringKeys();
-        eastlUnorderedMapStringIndexExperiments = new EastlUnorderedMapStringIndexExperiments(eastlStringKeys);
+        assureEastlStringKeys();
+        eastlUnorderedMapStringIndexExperiments = new EastlUnorderedMapStringIndexExperiments(*eastlStringKeys);
     }
 
     void assurePerfectHashFunctionStringIndexExperiments() {
     	BOOST_ASSERT_MSG(!perfectHashFunctionStringIndexExperiments, "tests must never leave leftovers -- containers must be deleted and set to 'nullptr' after use");
         if (perfectHashFunctionStringIndexExperiments) return;
-//        assureStdStringKeys();
-        perfectHashFunctionStringIndexExperiments = new PerfectHashFunctionStringIndexExperiments(stdStringKeys);
+        assureStdStringKeys();
+        perfectHashFunctionStringIndexExperiments = new PerfectHashFunctionStringIndexExperiments(*stdStringKeys);
     }
 
 #define GENERATE_KEYS(_keyStringType, _keysContainer, _vectorType)                                \
@@ -730,28 +723,30 @@ struct MemoryFootprintExperimentsObjects {
         output("\n\n");                                                                           \
         HEAP_TRACE(#_keyStringType " " + to_string(_numberOfElements) + " Random keys", output);  \
 
-    // void assureStdStringKeys() {
-    //     if (stdStringKeys) return;
-    //     if (eastlStringKeys) {
-    //     	output("Deleting no longer needed 'eastlStringKeys'.\n");
-    //     	delete eastlStringKeys;
-    //     	eastlStringKeys = nullptr;
-    //     }
-    //     GENERATE_KEYS(std::string, stdStringKeys, std::vector);
-    // }
-    // void assureEastlStringKeys() {
-    // 	if (eastlStringKeys) return;
-    //     if (stdStringKeys) {
-    //     	output("Deleting no longer needed 'stdStringKeys'.\n");
-    //     	delete stdStringKeys;
-    //     	stdStringKeys = nullptr;
-    //     }
-    //     GENERATE_KEYS(eastl::string, eastlStringKeys, eastl::vector);
-    // }
+    void assureStdStringKeys() {
+        if (stdStringKeys) return;
+        if (eastlStringKeys) {
+        	output("Deleting no longer needed 'eastlStringKeys'.\n");
+        	delete eastlStringKeys;
+        	eastlStringKeys = nullptr;
+        }
+        GENERATE_KEYS(std::string, stdStringKeys, std::vector);
+    }
+    void assureEastlStringKeys() {
+    	if (eastlStringKeys) return;
+        if (stdStringKeys) {
+        	output("Deleting no longer needed 'stdStringKeys'.\n");
+        	delete stdStringKeys;
+        	stdStringKeys = nullptr;
+        }
+        GENERATE_KEYS(eastl::string, eastlStringKeys, eastl::vector);
+    }
 
 #undef GENERATE_KEYS
 };
 // static initializers
+  std::vector  <std::string>*                                                  MemoryFootprintExperimentsObjects::stdStringKeys                              = nullptr;
+eastl::vector<eastl::string>*                                                  MemoryFootprintExperimentsObjects::eastlStringKeys                            = nullptr;
 MemoryFootprintExperimentsObjects::StandardMapStringIndexExperiments*          MemoryFootprintExperimentsObjects::standardMapStringIndexExperiments          = nullptr;
 MemoryFootprintExperimentsObjects::StandardUnorderedMapStringIndexExperiments* MemoryFootprintExperimentsObjects::standardUnorderedMapStringIndexExperiments = nullptr;
 MemoryFootprintExperimentsObjects::SkaByteLLMapStringIndexExperiments*         MemoryFootprintExperimentsObjects::skaByteLLMapStringIndexExperiments         = nullptr;
