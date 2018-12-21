@@ -623,11 +623,18 @@ void hashTableExperiments() {
         }                                                                                                                        \
     }                                                                                                                            \
 
+
+// from ConstexprRandomUniqueKeys.cpp
+struct ConstexprRandomUniqueKeys {
+    static constexpr unsigned                              keysLength = 4096000;
+    static const std::array<std::string_view, keysLength>  keys;
+};
+
 struct MemoryFootprintExperimentsObjects {
 
     // test case constants
-    static constexpr unsigned int _numberOfElements = 4'096'000;
-    static constexpr unsigned int _threads          = 4;
+    static constexpr unsigned _numberOfElements = ConstexprRandomUniqueKeys::keysLength;
+    static constexpr unsigned _threads          = 4;
 
     // hash map test case instances
     DECLARE_MAP_ALGORITHM_ANALYSIS_AND_REENTRANCY_TEST_CLASS(StandardMapStringIndexExperiments,          std::map,             std::vector,   std::string,   MemoryFootprintExperimentsObjects::output, /* empty param */);
@@ -707,15 +714,10 @@ struct MemoryFootprintExperimentsObjects {
 
 #define GENERATE_KEYS(_keyStringType, _keysContainer, _vectorType)                                \
         HEAP_MARK();                                                                              \
-        output("Generating " #_keyStringType " keys... ");                                        \
+        output("Creating " #_keyStringType " instances of existing constexpr keys... ");          \
         _keysContainer = new _vectorType<_keyStringType>(_numberOfElements);                      \
-        _keyStringType     str("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"); \
-        std::random_device rd;                                                                    \
-        std::mt19937       generator(rd());                                                       \
         for (int i=0; i<_numberOfElements; i++) {                                                 \
-            std::shuffle(str.begin(), str.end(), generator);                                      \
-            _keyStringType key         = str.substr(0, 16);                                       \
-            (*_keysContainer)[i] = key;                                                           \
+            (*_keysContainer)[i] = _keyStringType(ConstexprRandomUniqueKeys::keys[i].data(), ConstexprRandomUniqueKeys::keys[i].data()+ConstexprRandomUniqueKeys::keys[i].size()); \
             if (i%102400 == 0) {                                                                  \
                 output(".");                                                                      \
             }                                                                                     \
