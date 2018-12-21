@@ -20,6 +20,10 @@ using namespace mutua::cpputils;
 #include <SplitRun.h>
 using namespace mutua::testutils;
 
+// constexpr keys
+#include "ConstexprRandomUniqueStdStringKeys.h"
+#include "ConstexprRandomUniqueEastlStringKeys.h"
+
 // ska
 #include "flat_hash_map/unordered_map.hpp"
 #include "flat_hash_map/bytell_hash_map.hpp"
@@ -624,16 +628,10 @@ void hashTableExperiments() {
     }                                                                                                                            \
 
 
-// from ConstexprRandomUniqueKeys.cpp
-struct ConstexprRandomUniqueKeys {
-    static constexpr unsigned                              keysLength = 4096000;
-    static const std::array<std::string_view, keysLength>  keys;
-};
-
 struct MemoryFootprintExperimentsObjects {
 
     // test case constants
-    static constexpr unsigned _numberOfElements = ConstexprRandomUniqueKeys::keysLength;
+    static constexpr unsigned _numberOfElements = ConstexprRandomUniqueStdStringKeys::keysLength;
     static constexpr unsigned _threads          = 4;
 
     // hash map test case instances
@@ -717,7 +715,7 @@ struct MemoryFootprintExperimentsObjects {
         output("Creating " #_keyStringType " instances of existing constexpr keys... ");          \
         _keysContainer = new _vectorType<_keyStringType>(_numberOfElements);                      \
         for (int i=0; i<_numberOfElements; i++) {                                                 \
-            (*_keysContainer)[i] = _keyStringType(ConstexprRandomUniqueKeys::keys[i].data(), ConstexprRandomUniqueKeys::keys[i].data()+ConstexprRandomUniqueKeys::keys[i].size()); \
+            (*_keysContainer)[i] = _keyStringType(ConstexprRandomUniqueStdStringKeys::keys[i].data(), ConstexprRandomUniqueStdStringKeys::keys[i].data()+ConstexprRandomUniqueStdStringKeys::keys[i].size()); \
             if (i%102400 == 0) {                                                                  \
                 output(".");                                                                      \
             }                                                                                     \
